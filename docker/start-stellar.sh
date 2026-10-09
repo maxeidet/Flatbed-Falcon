@@ -5,15 +5,16 @@
 # THIS terminal (you get the pxh> shell). Open another terminal for the backend:
 #   ./ros2_ws/run.sh
 #
-# Default: --native-gui -w hive_base (Gazebo window on this computer's own screen).
+# Default: --native-gui --gpu -w hive_base (Gazebo window on this computer's own
+# screen, rendered on the GPU).
 #
 # Usage:
-#   ./start-stellar.sh                        # = --native-gui -w hive_base, drone gz_x500
+#   ./start-stellar.sh                        # = --native-gui --gpu -w hive_base, drone gz_x500_gimbal
 #   ./start-stellar.sh -m gz_x500_depth       # drone with a depth camera
 #   ./start-stellar.sh -w baylands            # another world
 #   ./start-stellar.sh --vnc                  # GUI through a browser on this computer instead
 #   ./start-stellar.sh --headless             # no GUI, no ports published
-#   ./start-stellar.sh --gpu                  # give the container the GPU(s), see below
+#   ./start-stellar.sh --no-gpu               # do not give the container the GPU(s), see below
 #
 # --native-gui (default): the Gazebo window opens on the screen you are sitting at
 #   (course students have no remote access, so we always are). No VNC involved.
@@ -23,10 +24,12 @@
 #     HOST_NOVNC_PORT=6081 HOST_VNC_PORT=5901 ./start-stellar.sh --vnc
 # The last of --native-gui / --vnc / --headless on the command line wins.
 #
-# GPU: --gpu passes `--device nvidia.com/gpu=all` (Stellar rootless Docker guide),
-# which gives the container ALL GPUs in the computer, and prints nvidia-smi first:
-# check that nobody else is using the GPU (Stellar rules). The VNC display is
-# software-rendered, so Gazebo only renders on the GPU with --native-gui.
+# GPU (default, --gpu): passes `--device nvidia.com/gpu=all` (Stellar rootless Docker
+# guide), which gives the container ALL GPUs in the computer, and prints nvidia-smi
+# first: check that nobody else is using the GPU (Stellar rules). --no-gpu turns it
+# off. Without an NVIDIA driver on the computer the script falls back to --no-gpu.
+# The VNC display is software-rendered, so Gazebo only renders on the GPU with
+# --native-gui.
 # Untested on Stellar until tried: while the GUI is up, `nvidia-smi` on the host
 # should list gz as a graphics (G) process. If it does not, rendering is still software.
 #
@@ -37,10 +40,11 @@
 # README-stellar.md for the full Stellar guide (including cleanup after a session).
 set -e
 
-MODEL="gz_x500"
+MODEL="gz_x500_gimbal"
 WORLD="hive_base"
 GUI_MODE="native"   # native | vnc | headless
-USE_GPU=0
+USE_GPU=1          # --no-gpu sets 0
+GPU_FLAG_GIVEN=0
 HOST_NOVNC_PORT="${HOST_NOVNC_PORT:-6080}"
 HOST_VNC_PORT="${HOST_VNC_PORT:-5900}"
 
@@ -68,6 +72,11 @@ while [ $# -gt 0 ]; do
       ;;
     --gpu)
       USE_GPU=1
+      GPU_FLAG_GIVEN=1
+      shift
+      ;;
+    --no-gpu)
+      USE_GPU=0
       shift
       ;;
     -h|--help)
@@ -93,8 +102,12 @@ if [ "$GUI_MODE" = "native" ] && [ -z "${DISPLAY:-}" ]; then
 fi
 
 if [ "$USE_GPU" = "1" ] && ! command -v nvidia-smi >/dev/null 2>&1; then
-  echo "nvidia-smi not found: no NVIDIA driver on this computer, so --gpu cannot work here."
-  exit 1
+  if [ "$GPU_FLAG_GIVEN" = "1" ]; then
+    echo "nvidia-smi not found: no NVIDIA driver on this computer, so --gpu cannot work here."
+    exit 1
+  fi
+  echo "nvidia-smi not found: no NVIDIA driver on this computer, running without the GPU."
+  USE_GPU=0
 fi
 
 cd "$(dirname "$0")"

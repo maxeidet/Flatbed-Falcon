@@ -5,7 +5,7 @@
 `start-dev.sh` only works on macOS (it opens Terminal.app with AppleScript). On the Stellar (Ubuntu) computers use `start-stellar.sh`, see below.
 
 ```bash
-./start-dev.sh                        # default drone (gz_x500) in baylands
+./start-dev.sh                        # default drone (gz_x500_gimbal) in hive_base
 ./start-dev.sh -m gz_x500_depth        # pick a different sensor loadout
 ./start-dev.sh --model gz_x500_lidar_front
 ./start-dev.sh -w forest               # pick a different world
@@ -13,7 +13,7 @@
 ./start-dev.sh -h                      # show usage
 ```
 
-The `-m`/`--model` flag sets which drone variant gets spawned — any value from the `PX4_SIM_MODEL` table below. Defaults to `gz_x500` (no extra sensors) if omitted.
+The `-m`/`--model` flag sets which drone variant gets spawned — any value from the `PX4_SIM_MODEL` table below. Defaults to `gz_x500_gimbal` (x500 with a 3-axis gimbal camera, which Flatbed Falcon points at the truck bed) if omitted.
 
 The `-w`/`--world` flag sets which Gazebo world gets loaded — any value from the world table below. **Defaults to `baylands`** if omitted.
 
@@ -89,7 +89,7 @@ export PX4_SIM_MODEL=gz_x500_depth
 | `gz_x500_lidar_down`  | 3D LiDAR, downward-facing (`gpu_lidar`)                           |
 | `gz_x500_flow`        | Optical flow sensor + LiDAR (altitude hold without GPS)           |
 | `gz_x500_vision`      | No extra sensor — for external vision/mocap input instead         |
-| `gz_x500_gimbal`      | Gimbal mount (pair with a camera model)                           |
+| `gz_x500_gimbal`      | 3-axis gimbal (CGO3) with an RGB camera; the default here         |
 
 **Radar doesn't exist** as a built-in sensor in PX4/Gazebo. For Counter-UAS detection, we'll either need to fake it with a scripted "detection radius" node, or build a custom Gazebo sensor plugin.
 

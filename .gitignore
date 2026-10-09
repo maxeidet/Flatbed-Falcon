@@ -224,3 +224,6 @@ ros2_ws/log/
 
 # macOS
 .DS_Store
+
+# Run logs from the logger node
+logs/

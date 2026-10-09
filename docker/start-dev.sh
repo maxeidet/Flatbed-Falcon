@@ -4,7 +4,7 @@
 # (drone 0) inside it. On the Stellar (Ubuntu) computers use start-stellar.sh.
 #
 # Usage:
-#   ./start-dev.sh                        # default drone (gz_x500) in hive_base
+#   ./start-dev.sh                        # default drone (gz_x500_gimbal) in hive_base
 #   ./start-dev.sh -m gz_x500_depth        # drone with a depth camera
 #   ./start-dev.sh --model gz_x500_lidar_front
 #   ./start-dev.sh -w forest               # different bundled world
@@ -21,7 +21,7 @@
 # See README.md in this folder for all valid PX4_SIM_MODEL and world values.
 set -e
 
-MODEL="gz_x500"
+MODEL="gz_x500_gimbal"
 WORLD="hive_base"
 HOST_NOVNC_PORT="${HOST_NOVNC_PORT:-6080}"
 HOST_VNC_PORT="${HOST_VNC_PORT:-5900}"

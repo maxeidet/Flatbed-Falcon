@@ -1,0 +1,58 @@
+# Parameters for all nodes. Every value here has the same default in the code, so a
+# missing line changes nothing; edit here to tune (no rebuild needed with --symlink-install).
+# Truck geometry must match worlds/generate_hive_base.py (TRUCK_*, BED_*).
+
+truck_driver:
+  ros__parameters:
+    road_csv: /workspace/worlds/road_centerline.csv
+    rate_hz: 20.0
+    wheelbase: 3.0
+    rear_axle_offset: 1.5
+    steer_limit: 0.6
+    lookahead_min: 3.0        # Pure Pursuit lookahead l = l0 + k v
+    lookahead_gain: 0.8
+    v_max: 8.0
+    a_lat: 2.0                # speed profile: v <= sqrt(a_lat / |curvature|)
+    a_brake: 1.5
+    a_accel: 1.0
+    kp_speed: 0.5
+    ki_speed: 0.2
+    v_land: 4.0               # constant speed while the drone lands (handshake)
+    zone_budget_s: 15.0       # commit only with this much landing zone left
+
+target_tracker:
+  ros__parameters:
+    spawn_enu: [0.0, 0.0, 0.0]     # PX4_GZ_MODEL_POSE of the drone (start-*.sh)
+    bed_offset: [-1.15, 0.0, 1.0]  # bed surface centre in the truck frame (forward, left, up)
+    rate_hz: 50.0
+    predict_ahead: 0.0
+    use_filter: false              # constant-velocity Kalman filter (phase 7)
+    filter_accel_std: 1.0
+    link_pos_noise: 0.0            # simulated radio link (phase 3), all off = ground truth
+    link_vel_noise: 0.0
+    link_latency: 0.0
+    link_dropout: 0.0
+    link_seed: 0
+
+landing_controller:
+  ros__parameters:
+    control_mode: pid              # pd | pid | lqr | px4 (pid: rotor drag needs the I term)
+    control_kp: 1.2
+    control_kd: 2.2
+    control_ki: 0.3                # only in mode pid
+    control_i_acc_limit: 1.5
+    control_rate_hz: 20.0
+    cruise_alt: 25.0
+    h_track: 4.0
+    descend_rate: 0.5
+    gate_pos: 0.3
+    gate_vel: 0.3
+    gate_time: 1.5
+    require_handshake: true
+    gimbal_mode: track             # track (camera on the bed) | down | off
+    gimbal_rate_hz: 5.0
+
+falcon_logger:
+  ros__parameters:
+    log_dir: /workspace/logs
+    rate_hz: 20.0

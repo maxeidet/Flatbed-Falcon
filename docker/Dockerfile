@@ -16,6 +16,21 @@ RUN apt-get update && apt-get install -y \
     websockify \
     && rm -rf /var/lib/apt/lists/*
 
+# ros_gz_bridge = forwards the truck's Gazebo topics (cmd_vel, odometry, bed contact,
+# clock) and the gimbal camera to ROS 2. python3-scipy = Lab 3's SplinePath and
+# solve_discrete_are (LQR). rviz2 = shows the gimbal camera (ros2_ws/view-camera.sh).
+RUN apt-get update && apt-get install -y \
+    ros-jazzy-ros-gz-bridge \
+    ros-jazzy-rviz2 \
+    python3-scipy \
+    && rm -rf /var/lib/apt/lists/*
+
+# ros_gz_bridge pulls in ROS's own gz-transport/gz-msgs "vendor" packages. Sourcing ROS then
+# points GZ_CONFIG_PATH at only those, which hides the system Gazebo's `gz sim` command, so
+# PX4 (whose entrypoint sources ROS) cannot start Gazebo. ROS prepends to this value, so
+# setting it here keeps the system Gazebo commands available.
+ENV GZ_CONFIG_PATH=/usr/share/gz
+
 # Simulation only: the x500 airframe (and every x500 variant, they all source it) sets
 # NAV_DLL_ACT=2, "return home when the ground-station link is lost". With that on, PX4
 # refuses to arm ("No connection to the GCS") until QGroundControl is connected. Our

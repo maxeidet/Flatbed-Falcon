@@ -13,9 +13,18 @@ See [PLAN.md](PLAN.md) for the design and work plan.
 ```bash
 cd docker && ./start-dev.sh        # macOS: builds the image, starts PX4 + Gazebo (hive_base world)
 ./ros2_ws/run.sh                   # second terminal: builds and launches all nodes
+./ros2_ws/view-camera.sh           # optional, third terminal: the gimbal camera in RViz
 ```
 
 On the Stellar computers use `docker/start-stellar.sh` instead (see [docker/README-stellar.md](docker/README-stellar.md)).
+
+The drone takes off from the camp, chases the truck and lands on its bed by itself. Each run writes a CSV to `logs/`. All tuning lives in `ros2_ws/src/flatbed_falcon/config/falcon.yaml` (controller mode and gains, speeds, landing gate, simulated link noise/latency, Kalman filter); `./ros2_ws/run.sh` rebuilds and picks up edits.
+
+Offline tests (no Gazebo), inside the sim container:
+
+```bash
+docker exec -it flatbed-falcon-sim bash -c "cd /workspace/ros2_ws/src/flatbed_falcon && PYTHONPATH=. python3 -m pytest -q test"
+```
 
 ## Layout
 
@@ -27,9 +36,9 @@ On the Stellar computers use `docker/start-stellar.sh` instead (see [docker/READ
 
 | Node | Role |
 |---|---|
-| `truck_driver` | Pure Pursuit along the road loop |
-| `target_tracker` | Truck pose (world ENU) → landing target (PX4 local NED) |
-| `landing_controller` | PID tracking + landing state machine → PX4 Offboard |
+| `truck_driver` | Pure Pursuit (Lab 3) + speed profile along the road loop, landing handshake |
+| `target_tracker` | Truck pose (world ENU) → bed target (PX4 local NED); simulated link + Kalman filter |
+| `landing_controller` | Lab 4 PD/PID (or LQR) tracking + landing state machine → PX4 Offboard |
 | `logger` | CSV logs for plots |
 
 All frame conversions (ENU ↔ NED, spawn offset) live in `flatbed_falcon/frames.py`.

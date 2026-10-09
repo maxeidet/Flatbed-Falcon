@@ -2,7 +2,7 @@
 
 set -e
 
-MODEL="gz_x500"
+MODEL="gz_x500_gimbal"
 
 while [ $# -gt 0 ]; do
   case "$1" in

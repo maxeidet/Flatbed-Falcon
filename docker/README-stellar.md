@@ -8,7 +8,7 @@ The script for all of this is `docker/start-stellar.sh`. It only works on Linux.
 
 - **No root, nothing to install.** Docker is already set up per user. Never run `dockerd-rootless-setuptool.sh` (out of date, it's done for us).
 - **Course students:** no remote access, use the rooms only when we need a GPU, normally one computer per group, leave at once when someone with higher priority needs it, no reservation notes.
-- **Don't hog.** Use the computer our work needs, not the best free one. `--gpu` gives the container **all** GPUs in the computer, so check `nvidia-smi` first that nobody is using it.
+- **Don't hog.** Use the computer our work needs, not the best free one. The script gives the container **all** GPUs in the computer by default (`--no-gpu` turns it off), so check `nvidia-smi` first that nobody is using it.
 - **Nothing reachable from outside the university network.** No reverse tunnels, ngrok or Tailscale. Our script binds ports to `127.0.0.1` only. Never change that to `0.0.0.0`.
 - **Shared disk, no backup.** Images live in `~/.local/share/docker` on a disk shared with everyone on that computer (1-2 TB, the login screen shows how much is free). Files stay on the computer they were made on and are never backed up, so anything that matters goes to Git. Disks that fill up get cleared by stellar-support, and people who repeatedly fill them can get a notice. If we ever need to keep a lot of data, write to stellar-support before the disk fills. Clean up after every session (section 6), and when the project ends move off or delete what we no longer use.
 - **Log out when leaving.** Never switch a computer off. The last one out of the room arms the alarm.
@@ -44,7 +44,7 @@ Get the latest code:
 cd ~/flatbed-falcon && git pull
 ```
 
-Start the simulation (default is `--native-gui -w hive_base`, drone `gz_x500`):
+Start the simulation (default is `--native-gui -w hive_base`, drone `gz_x500_gimbal`):
 ```bash
 cd ~/flatbed-falcon/docker && ./start-stellar.sh
 ```
@@ -61,13 +61,14 @@ What happens:
 
 | Flag | What it does |
 |---|---|
-| *(none)* | Same as `--native-gui -w hive_base`, drone `gz_x500` |
+| *(none)* | Same as `--native-gui --gpu -w hive_base`, drone `gz_x500_gimbal` |
 | `-m MODEL` | Drone variant, e.g. `gz_x500_depth` (all values in `README.md`) |
 | `-w WORLD` | World, e.g. `baylands`, `forest`, `default` (all values in `README.md`) |
 | `--native-gui` | Gazebo window on this computer's own screen (default) |
 | `--vnc` | GUI in a browser on this computer instead: `http://localhost:6080/vnc.html`, with a random password printed by the script |
 | `--headless` | No GUI at all |
-| `--gpu` | Give the container the GPU(s). Prints `nvidia-smi` first |
+| `--gpu` | Give the container the GPU(s) (default). Prints `nvidia-smi` first. Without an NVIDIA driver the script falls back to `--no-gpu` |
+| `--no-gpu` | Do not give the container the GPU(s) |
 | `-h` | Show usage |
 
 The last of `--native-gui`, `--vnc` and `--headless` wins. If another user already holds the VNC ports, override them:
@@ -94,7 +95,7 @@ If PX4 refuses a command the backend keeps retrying once per second and prints `
 ## 5. Looking at the world, and the GPU
 
 - **Default (`--native-gui`):** the window opens on the screen we're sitting at. If no window appears or it errors, use `--vnc` instead.
-- **GPU:** `./start-stellar.sh --gpu` passes `--device nvidia.com/gpu=all` to the container. That alone does not make Gazebo render on the GPU. The VNC display is software-rendered, so only `--native-gui --gpu` can use it. To check, run `nvidia-smi` in another terminal while the GUI is up: `gz` should be listed as a graphics (G) process. If it isn't, rendering is still on the CPU.
+- **GPU:** `./start-stellar.sh` (default, or `--gpu`) passes `--device nvidia.com/gpu=all` to the container. That alone does not make Gazebo render on the GPU. The VNC display is software-rendered, so only `--native-gui` (the default) can use it. To check, run `nvidia-smi` in another terminal while the GUI is up: `gz` should be listed as a graphics (G) process. If it isn't, rendering is still on the CPU.
 - **Sensors:** camera and lidar sensors render inside the simulation, so they only benefit from the GPU in `--native-gui` mode.
 - **ML training** is not covered yet: the image has no PyTorch or CUDA.
 

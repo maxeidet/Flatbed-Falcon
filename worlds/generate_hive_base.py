@@ -685,6 +685,159 @@ build_tgb40("tgb40_1", (17, -14, 0, 0, 0, 1.6))
 build_bv206("bv206_2", ROADSIDE_BV)
 
 # ----------------------------------------------------------------------------
+# Pickup med flak (Flatbed Falcon): dynamisk modell som kör på vägen.
+# ----------------------------------------------------------------------------
+# Måtten används även av ROS-noderna (ros2_ws/src/flatbed_falcon/config/falcon.yaml):
+# ändras de här måste de ändras där också.
+# Modellens origo ligger på marken mitt mellan axlarna; det är den punkten
+# /truck/odom rapporterar. +x är framåt.
+TRUCK_WHEELBASE = 3.0
+TRUCK_TRACK = 1.7          # hjulavstånd sida-sida
+TRUCK_WHEEL_R = 0.4
+TRUCK_WHEEL_W = 0.3
+TRUCK_STEER_LIMIT = 0.6    # rad
+BED_LEN, BED_W = 2.5, 2.0  # flakets landningsyta (x, y)
+BED_X = -1.15              # flakets mitt relativt modellens origo
+BED_TOP = 1.0              # flakets ovansida över marken
+TRUCK_COLOR = (0.55, 0.12, 0.10, 1)
+PAD_ORANGE = (0.95, 0.45, 0.05, 1)
+
+
+def box_inertia(m, x, y, z):
+    return (m / 12 * (y * y + z * z), m / 12 * (x * x + z * z), m / 12 * (x * x + y * y))
+
+
+def inertial(m, ixx, iyy, izz):
+    return (
+        f"<inertial><mass>{f(float(m))}</mass><inertia><ixx>{f(float(ixx))}</ixx><ixy>0</ixy><ixz>0</ixz>"
+        f"<iyy>{f(float(iyy))}</iyy><iyz>0</iyz><izz>{f(float(izz))}</izz></inertia></inertial>"
+    )
+
+
+class Truck:
+    """Dynamisk pickup: chassi + fyra hjul, Ackermann-styrning, odometri och
+    kontaktsensor på flaket. Ingen Model-instans eftersom den inte är statisk."""
+
+    def __init__(self, name, p):
+        self.name, self.pose, self.n = name, p, 0
+        self.visuals = []
+
+    def vis(self, kind, dims, p, color):
+        self.n += 1
+        self.visuals.append(
+            f'<visual name="v{self.n}"><pose>{pose(*p)}</pose><geometry>{geom(kind, *dims)}</geometry>{material(color)}</visual>'
+        )
+
+    def sdf(self):
+        r, w, L, T = TRUCK_WHEEL_R, TRUCK_WHEEL_W, TRUCK_WHEELBASE, TRUCK_TRACK
+        # Kaross (visuellt): ram, hytt, motorhuv, flak med lågt räcke och landningsplatta
+        self.vis("box", (4.9, 1.8, 0.35), (0.1, 0, 0.75, 0, 0, 0), STEEL)
+        self.vis("box", (1.1, 1.85, 0.6), (1.95, 0, 1.15, 0, 0, 0), TRUCK_COLOR)          # motorhuv
+        self.vis("box", (1.3, 1.9, 1.1), (0.75, 0, 1.45, 0, 0, 0), TRUCK_COLOR)           # hytt
+        self.vis("box", (0.05, 1.7, 0.55), (1.41, 0, 1.65, 0, -0.25, 0), GLASS)           # vindruta
+        for side in (-1, 1):
+            self.vis("box", (0.8, 0.02, 0.45), (0.75, side * 0.96, 1.7, 0, 0, 0), GLASS)
+            self.vis("cyl", (0.1, 0.06), (2.5, side * 0.7, 1.2, 0, math.pi / 2, 0), (0.9, 0.9, 0.8, 1))
+        self.vis("box", (BED_LEN, BED_W, 0.1), (BED_X, 0, BED_TOP - 0.05, 0, 0, 0), STEEL)
+        for side in (-1, 1):
+            self.vis("box", (BED_LEN, 0.05, 0.12), (BED_X, side * (BED_W / 2 - 0.025), BED_TOP + 0.06, 0, 0, 0), TRUCK_COLOR)
+        # Landningsmarkering: orange ram och ett H, ligger precis ovanpå flaket
+        mz = BED_TOP + 0.003
+        for dx, dy, sx, sy in ((0, 0.8, 2.1, 0.08), (0, -0.8, 2.1, 0.08), (1.0, 0, 0.08, 1.6), (-1.0, 0, 0.08, 1.6)):
+            self.vis("box", (sx, sy, 0.006), (BED_X + dx, dy, mz, 0, 0, 0), PAD_ORANGE)
+        for dy in (-0.35, 0.35):
+            self.vis("box", (0.9, 0.1, 0.006), (BED_X, dy, mz, 0, 0, 0), WHITE)
+        self.vis("box", (0.1, 0.7, 0.006), (BED_X, 0, mz, 0, 0, 0), WHITE)
+
+        ix = box_inertia(1500, 4.8, 1.8, 0.8)
+        friction = "<surface><friction><ode><mu>1.5</mu><mu2>1.5</mu2></ode></friction></surface>"
+        chassis = (
+            f'<link name="chassis"><pose>0 0 {f(r)} 0 0 0</pose>'
+            # Tyngdpunkt lågt och något framför mitten (motor, hytt)
+            f"<inertial><pose>0.2 0 0.2 0 0 0</pose><mass>1500</mass><inertia><ixx>{f(ix[0])}</ixx><ixy>0</ixy><ixz>0</ixz>"
+            f"<iyy>{f(ix[1])}</iyy><iyz>0</iyz><izz>{f(ix[2])}</izz></inertia></inertial>"
+            # Kollision: ram, hytt + motorhuv, och flaket (som får kontaktsensorn)
+            f'<collision name="frame"><pose>0.1 0 {f(0.75 - r)} 0 0 0</pose><geometry>{geom("box", 4.9, 1.8, 0.35)}</geometry></collision>'
+            f'<collision name="cab"><pose>1.25 0 {f(1.45 - r)} 0 0 0</pose><geometry>{geom("box", 2.3, 1.9, 1.1)}</geometry></collision>'
+            f'<collision name="bed"><pose>{f(BED_X)} 0 {f(BED_TOP - 0.05 - r)} 0 0 0</pose><geometry>{geom("box", BED_LEN, BED_W, 0.1)}</geometry>{friction}</collision>'
+            + "".join(self._shifted(-r))
+            + '<sensor name="bed_contact" type="contact"><always_on>true</always_on><update_rate>50</update_rate>'
+            "<topic>/truck/bed_contact</topic><contact><collision>bed</collision><topic>/truck/bed_contact</topic></contact></sensor>"
+            "</link>"
+        )
+        links, joints = [chassis], []
+        # Cylinderns axel är länkens z (hjulaxeln)
+        i_side = 30 / 12 * (3 * r * r + w * w)
+        wheel_in = inertial(30, i_side, i_side, 0.5 * 30 * r * r)
+        wheel_fr = "<surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface>"
+        for name, x, y in (("front_left", L / 2, T / 2), ("front_right", L / 2, -T / 2),
+                           ("rear_left", -L / 2, T / 2), ("rear_right", -L / 2, -T / 2)):
+            wheel_geom = geom("cyl", r, w)
+            links.append(
+                f'<link name="{name}_wheel"><pose>{pose(x, y, r, -math.pi / 2, 0, 0)}</pose>{wheel_in}'
+                f'<visual name="tyre"><geometry>{wheel_geom}</geometry>{material(RUBBER)}</visual>'
+                f'<visual name="rim"><geometry>{geom("cyl", r * 0.55, w + 0.02)}</geometry>{material(STEEL)}</visual>'
+                f'<collision name="collision"><geometry>{wheel_geom}</geometry>{wheel_fr}</collision></link>'
+            )
+            parent = "chassis"
+            if name.startswith("front"):
+                parent = f"{name}_steering"
+                links.append(
+                    f'<link name="{name}_steering"><pose>{pose(x, y * 0.85, r, 0, 0, 0)}</pose>{inertial(5, 0.05, 0.05, 0.05)}</link>'
+                )
+                joints.append(
+                    f'<joint name="{name}_steering_joint" type="revolute"><parent>chassis</parent><child>{name}_steering</child>'
+                    f"<axis><xyz>0 0 1</xyz><limit><lower>{-TRUCK_STEER_LIMIT}</lower><upper>{TRUCK_STEER_LIMIT}</upper>"
+                    "<velocity>2.0</velocity><effort>20000</effort></limit></axis></joint>"
+                )
+            joints.append(
+                f'<joint name="{name}_wheel_joint" type="revolute"><parent>{parent}</parent><child>{name}_wheel</child>'
+                "<axis><xyz>0 0 1</xyz><limit><lower>-1e16</lower><upper>1e16</upper></limit></axis></joint>"
+            )
+        plugins = (
+            '<plugin filename="gz-sim-ackermann-steering-system" name="gz::sim::systems::AckermannSteering">'
+            "<left_joint>front_left_wheel_joint</left_joint><left_joint>rear_left_wheel_joint</left_joint>"
+            "<right_joint>front_right_wheel_joint</right_joint><right_joint>rear_right_wheel_joint</right_joint>"
+            "<left_steering_joint>front_left_steering_joint</left_steering_joint>"
+            "<right_steering_joint>front_right_steering_joint</right_steering_joint>"
+            f"<kingpin_width>{f(T * 0.85)}</kingpin_width><steering_limit>{TRUCK_STEER_LIMIT}</steering_limit>"
+            f"<wheel_base>{f(L)}</wheel_base><wheel_separation>{f(T)}</wheel_separation><wheel_radius>{f(r)}</wheel_radius>"
+            "<steer_p_gain>8.0</steer_p_gain>"
+            "<min_velocity>-3</min_velocity><max_velocity>12</max_velocity>"
+            "<min_acceleration>-4</min_acceleration><max_acceleration>2.5</max_acceleration>"
+            "<topic>/truck/cmd_vel</topic></plugin>"
+            '<plugin filename="gz-sim-odometry-publisher-system" name="gz::sim::systems::OdometryPublisher">'
+            "<odom_topic>/truck/odom</odom_topic><odom_frame>world</odom_frame><robot_base_frame>truck</robot_base_frame>"
+            "<odom_publish_frequency>50</odom_publish_frequency><dimensions>3</dimensions></plugin>"
+        )
+        body = "\n      ".join(links + joints) + "\n      " + plugins
+        return (
+            f'    <model name="{self.name}">\n'
+            f"      <pose>{pose(*self.pose)}</pose>\n"
+            f"      {body}\n"
+            f"    </model>\n"
+        )
+
+    def _shifted(self, dz):
+        """Karossens visuals ritas i modellens ram; flytta dem till chassilänkens ram."""
+        out = []
+        for v in self.visuals:
+            head, rest = v.split("<pose>", 1)
+            p, tail = rest.split("</pose>", 1)
+            vals = [float(x) for x in p.split()]
+            vals[2] += dz
+            out.append(f"{head}<pose>{pose(*vals)}</pose>{tail}")
+        return out
+
+
+# Lastbilen startar i början av landningszon 1 (inre raksträckan förbi infarten),
+# vänd i körriktningen.
+_z1 = next(pt for pt in ROAD_PTS if pt[5] == 1)
+TRUCK_START = (_z1[1], _z1[2], 0.05, 0, 0, _z1[3])
+truck = Truck("truck", TRUCK_START)
+models.append(truck)
+
+# ----------------------------------------------------------------------------
 # Skriv SDF
 # ----------------------------------------------------------------------------
 HEADER = """<?xml version="1.0" ?>

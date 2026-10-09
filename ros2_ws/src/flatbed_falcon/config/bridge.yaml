@@ -1,0 +1,35 @@
+# ros_gz_bridge: the truck's Gazebo topics (set in worlds/generate_hive_base.py) and the sim clock.
+- ros_topic_name: /clock
+  gz_topic_name: /clock
+  ros_type_name: rosgraph_msgs/msg/Clock
+  gz_type_name: gz.msgs.Clock
+  direction: GZ_TO_ROS
+- ros_topic_name: /truck/cmd_vel
+  gz_topic_name: /truck/cmd_vel
+  ros_type_name: geometry_msgs/msg/Twist
+  gz_type_name: gz.msgs.Twist
+  direction: ROS_TO_GZ
+- ros_topic_name: /truck/odom
+  gz_topic_name: /truck/odom
+  ros_type_name: nav_msgs/msg/Odometry
+  gz_type_name: gz.msgs.Odometry
+  direction: GZ_TO_ROS
+- ros_topic_name: /truck/bed_contact
+  gz_topic_name: /truck/bed_contact
+  ros_type_name: ros_gz_interfaces/msg/Contacts
+  gz_type_name: gz.msgs.Contacts
+  direction: GZ_TO_ROS
+# The gimbal camera (gz_x500_gimbal, instance 0, world hive_base). Lazy: only bridged
+# while someone subscribes, so the images cost nothing otherwise.
+- ros_topic_name: /falcon/camera/image
+  gz_topic_name: /world/hive_base/model/x500_gimbal_0/link/camera_link/sensor/camera/image
+  ros_type_name: sensor_msgs/msg/Image
+  gz_type_name: gz.msgs.Image
+  direction: GZ_TO_ROS
+  lazy: true
+- ros_topic_name: /falcon/camera/camera_info
+  gz_topic_name: /world/hive_base/model/x500_gimbal_0/link/camera_link/sensor/camera/camera_info
+  ros_type_name: sensor_msgs/msg/CameraInfo
+  gz_type_name: gz.msgs.CameraInfo
+  direction: GZ_TO_ROS
+  lazy: true

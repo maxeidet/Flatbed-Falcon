@@ -21,6 +21,11 @@ def wrap_pi(angle):
     return (angle + math.pi) % (2.0 * math.pi) - math.pi
 
 
+def yaw_from_quaternion(q):
+    """Yaw of a quaternion with fields w, x, y, z (rotation about the frame's z axis)."""
+    return math.atan2(2.0 * (q.w * q.z + q.x * q.y), 1.0 - 2.0 * (q.y * q.y + q.z * q.z))
+
+
 def yaw_enu_to_ned(yaw):
     return wrap_pi(math.pi / 2.0 - yaw)
 
@@ -37,3 +42,16 @@ def world_enu_to_px4_local(x, y, z, spawn_enu):
     """
     sx, sy, sz = spawn_enu
     return enu_to_ned(x - sx, y - sy, z - sz)
+
+
+def body_point_enu(x, y, z, yaw, vx, vy, vz, yaw_rate, offset):
+    """Position and world velocity (ENU) of a point fixed on a vehicle.
+
+    (x, y, z, yaw) is the vehicle's ENU pose, (vx, vy, vz) its world velocity and
+    yaw_rate its turn rate (counter-clockwise). offset = (forward, left, up) in the
+    vehicle's frame. The point also moves with omega x r when the vehicle turns.
+    """
+    fx, fy, fz = offset
+    c, s = math.cos(yaw), math.sin(yaw)
+    rx, ry = c * fx - s * fy, s * fx + c * fy
+    return (x + rx, y + ry, z + fz), (vx - yaw_rate * ry, vy + yaw_rate * rx, vz)
