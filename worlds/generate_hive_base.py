@@ -115,10 +115,10 @@ models = []
 # ----------------------------------------------------------------------------
 # Lägret ligger inne i tät skog kring origo, där drönaren spawnar.
 # Träd växer ända fram till och mellan tälten; bara objekten själva har fri yta.
-# Grusvägen går öst-väst söder om lägret med en svag kurva, och en infart
-# leder norrut in till fordonsplatsen.
-WORLD_R = 120.0
-TREE_TARGET = 900
+# Grusvägen är en slinga runt lägret (se ROAD_CORNERS), och en infart leder
+# norrut från södra raksträckan in till fordonsplatsen.
+WORLD_R = 150.0
+TREE_TARGET = 1300
 MIN_TREE_D = 4.8
 SPAWN_FREE_R = 12.0
 
@@ -134,21 +134,126 @@ CAMP_ZONES = [(0, 0, 7.0)] + [(tx, ty, 4.2) for tx, ty, _ in TENTS] + [
 VEH_AREA = (5.0, 23.0, -21.0, -8.0)  # xmin, xmax, ymin, ymax
 
 
-def road_y(x):
-    return -38.0 + 7.0 * math.sin(x / 45.0)
-
-
-ROAD_X = (-150.0, 150.0)
+# Grusvägen är en sluten slinga runt lägret som lastbilen kör varv på.
+# Den definieras som hörnpunkter (x, y, radie): mellan hörnen går raka sträckor
+# och varje hörn rundas av med en cirkelbåge. Raksträckorna har alltså exakt
+# noll krökning; de långa blir landningszoner för drönaren.
+# Ordningen är moturs, så positiv krökning = vänstersväng.
+ROAD_CORNERS = [
+    (-100.0, -80.0, 17.0),   # serpentinens västra hårnål ...
+    (-100.0, -115.0, 17.0),  # ... (två 90°-hörn = 180° vändning)
+    (90.0, -115.0, 25.0),    # sydost (södra raksträckan = landningszon)
+    (125.0, -62.0, 20.0),
+    (118.0, 10.0, 20.0),     # östra kurvan
+    (80.0, 35.0, 15.0),      # S-kurva in mot lägret ...
+    (112.0, 72.0, 18.0),     # ... och ut igen
+    (50.0, 100.0, 25.0),     # nordost
+    (-20.0, 75.0, 20.0),     # svacka norr om lägret
+    (-60.0, 105.0, 15.0),    # snäv krön-kurva
+    (-110.0, 90.0, 20.0),    # nordväst
+    (-118.0, -15.0, 20.0),   # västra sidan
+    (-65.0, -45.0, 15.0),    # inre raksträckan förbi infarten (landningszon)
+    (65.0, -45.0, 17.0),     # serpentinens östra hårnål ...
+    (65.0, -80.0, 17.0),     # ... tillbaka västerut (landningszon)
+]
 ROAD_W = 5.0
 ACCESS_X = 12.0  # infartens x-läge
+LANDING_MIN_LEN = 100.0  # raksträckor minst så här långa blir landningszoner
+ROAD_CSV = Path(__file__).with_name("road_centerline.csv")
+
+
+def build_road(corners):
+    """Delar upp slingan i raka bitar och bågar.
+
+    Returnerar en lista med ("line", p0, p1) och ("arc", centrum, R, a0, dvinkel).
+    """
+    n = len(corners)
+    tangents = []
+    for i, (px, py, R) in enumerate(corners):
+        ax, ay, _ = corners[i - 1]
+        bx, by, _ = corners[(i + 1) % n]
+        a_in = math.atan2(py - ay, px - ax)
+        a_out = math.atan2(by - py, bx - px)
+        turn = (a_out - a_in + math.pi) % (2 * math.pi) - math.pi
+        t = R * math.tan(abs(turn) / 2)
+        if t > 0.5 * min(math.hypot(px - ax, py - ay), math.hypot(bx - px, by - py)):
+            raise ValueError(f"Hörn {i}: radien {R} får inte plats")
+        t1 = (px - t * math.cos(a_in), py - t * math.sin(a_in))
+        t2 = (px + t * math.cos(a_out), py + t * math.sin(a_out))
+        side = 1 if turn > 0 else -1
+        c = (t1[0] - side * R * math.sin(a_in), t1[1] + side * R * math.cos(a_in))
+        a0 = math.atan2(t1[1] - c[1], t1[0] - c[0])
+        tangents.append((t1, t2, c, R, a0, turn))
+    pieces = []
+    for i in range(n):
+        t1, t2, c, R, a0, turn = tangents[i]
+        nxt = tangents[(i + 1) % n][0]
+        pieces.append(("arc", c, R, a0, turn))
+        pieces.append(("line", t2, nxt))
+    return pieces
+
+
+def sample_road(pieces, ds):
+    """Punkter längs mittlinjen: (s, x, y, kurs, krökning, landningszon-id eller -1)."""
+    out, s, zone = [], 0.0, 0
+    for p in pieces:
+        if p[0] == "line":
+            (x0, y0), (x1, y1) = p[1], p[2]
+            L = math.hypot(x1 - x0, y1 - y0)
+            hdg = math.atan2(y1 - y0, x1 - x0)
+            zid = zone if L >= LANDING_MIN_LEN else -1
+            zone += zid >= 0
+            k_n = max(1, round(L / ds))
+            for k in range(k_n):
+                u = k / k_n
+                out.append((s + u * L, x0 + u * (x1 - x0), y0 + u * (y1 - y0), hdg, 0.0, zid))
+        else:
+            _, (cx, cy), R, a0, turn = p
+            L = R * abs(turn)
+            side = 1 if turn > 0 else -1
+            k_n = max(1, round(L / ds))
+            for k in range(k_n):
+                a = a0 + turn * k / k_n
+                hdg = (a + side * math.pi / 2 + math.pi) % (2 * math.pi) - math.pi
+                out.append((s + L * k / k_n, cx + R * math.cos(a), cy + R * math.sin(a), hdg, side / R, -1))
+        s += L
+    return out, s
+
+
+ROAD_PIECES = build_road(ROAD_CORNERS)
+ROAD_PTS, ROAD_LEN = sample_road(ROAD_PIECES, 1.0)
+# Spatialt rutnät över mittlinjepunkterna så avståndsfrågan blir snabb
+_RCELL = 10.0
+_road_grid = {}
+for _s, _x, _y, *_ in ROAD_PTS:
+    _road_grid.setdefault((int(_x // _RCELL), int(_y // _RCELL)), []).append((_x, _y))
 
 
 def dist_to_road(x, y):
-    return abs(y - road_y(x))
+    """Avstånd till vägens mittlinje (mättat till 30 m långt bort från vägen)."""
+    gx, gy = int(x // _RCELL), int(y // _RCELL)
+    d2 = 30.0 ** 2
+    for ix in range(gx - 3, gx + 4):
+        for iy in range(gy - 3, gy + 4):
+            for px, py in _road_grid.get((ix, iy), ()):
+                d2 = min(d2, (px - x) ** 2 + (py - y) ** 2)
+    return math.sqrt(d2)
+
+
+# En Bv 206 står parkerad på vägrenen längs norra sträckan (efter hörnet i (50, 100)),
+# helt utanför körbanan så den inte står i vägen för lastbilen.
+(_bx0, _by0), (_bx1, _by1) = ROAD_PIECES[2 * 7 + 1][1], ROAD_PIECES[2 * 7 + 1][2]
+_bh = math.atan2(_by1 - _by0, _bx1 - _bx0)
+_boff = ROAD_W / 2 + 1.5
+ROADSIDE_BV = ((_bx0 + _bx1) / 2 - math.sin(_bh) * _boff, (_by0 + _by1) / 2 + math.cos(_bh) * _boff, 0, 0, 0, _bh)
+CAMP_ZONES.append((ROADSIDE_BV[0], ROADSIDE_BV[1], 4.5))
+
+# Infarten går söderut från gläntan till närmaste vägbit under den
+ACCESS_Y0 = max(y for _, x, y, *_ in ROAD_PTS if abs(x - ACCESS_X) < 1.0 and y < -8)
 
 
 def in_access(x, y, margin=0.0):
-    return abs(x - ACCESS_X) < 3.5 + margin and road_y(ACCESS_X) - 2 < y < -8
+    return abs(x - ACCESS_X) < 3.5 + margin and ACCESS_Y0 - 2 < y < -8
 
 
 # ----------------------------------------------------------------------------
@@ -165,26 +270,48 @@ ground.parts.append(
 models.append(ground)
 
 # ----------------------------------------------------------------------------
-# Grusväg (segment längs en kurva) + infart
+# Grusväg (slinga av raka bitar och bågar) + infart
 # ----------------------------------------------------------------------------
 road = Model("dirt_road")
-step = 6.0
-x = ROAD_X[0]
-while x < ROAD_X[1]:
-    x2 = x + step
-    y1, y2 = road_y(x), road_y(x2)
-    L = math.hypot(x2 - x, y2 - y1) + 0.4
-    yaw = math.atan2(y2 - y1, x2 - x)
-    cx, cy = (x + x2) / 2, (y1 + y2) / 2
+
+
+def road_strip(x0, y0, x1, y1, overlap):
+    """En vägbit från (x0, y0) till (x1, y1) med hjulspår och grusad mittsträng."""
+    L = math.hypot(x1 - x0, y1 - y0) + overlap
+    yaw = math.atan2(y1 - y0, x1 - x0)
+    cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
     road.add("box", (L, ROAD_W, 0.04), (cx, cy, 0.02, 0, 0, yaw), DIRT, shadows=False)
-    # Hjulspår och grusad mittsträng
     for off, col in ((-1.1, RUT), (1.1, RUT), (0.0, GRAVEL)):
         ox, oy = -math.sin(yaw) * off, math.cos(yaw) * off
         w = 0.5 if col is RUT else 0.6
         road.add("box", (L, w, 0.02), (cx + ox, cy + oy, 0.045, 0, 0, yaw), col, shadows=False)
-    x = x2
+
+
+for p in ROAD_PIECES:
+    if p[0] == "line":
+        road_strip(*p[1], *p[2], 0.2)
+    else:
+        # Korta korda-bitar i bågen; överlappet täcker kilen i ytterkanten
+        _, (cx, cy), R, a0, turn = p
+        k_n = max(2, math.ceil(R * abs(turn) / 2.0))
+        for k in range(k_n):
+            a1, a2 = a0 + turn * k / k_n, a0 + turn * (k + 1) / k_n
+            road_strip(cx + R * math.cos(a1), cy + R * math.sin(a1), cx + R * math.cos(a2), cy + R * math.sin(a2), 0.6)
+
+# Landningszoner: vit/orange stolpe på båda vägrenarna i början och slutet
+LANDING_ZONES = {}
+for _s, _x, _y, _h, _k, _z in ROAD_PTS:
+    if _z >= 0:
+        LANDING_ZONES.setdefault(_z, []).append((_x, _y, _h))
+for pts in LANDING_ZONES.values():
+    for x, y, h in (pts[0], pts[-1]):
+        for side in (-1, 1):
+            px, py = x - side * math.sin(h) * (ROAD_W / 2 + 0.6), y + side * math.cos(h) * (ROAD_W / 2 + 0.6)
+            road.add("cyl", (0.06, 1.2), (px, py, 0.6, 0, 0, 0), WHITE)
+            road.add("cyl", (0.065, 0.2), (px, py, 1.05, 0, 0, 0), (0.9, 0.4, 0.05, 1))
+
 # Infart från vägen upp till gläntan
-ay0 = road_y(ACCESS_X)
+ay0 = ACCESS_Y0
 alen = -6 - ay0
 road.add("box", (4.0, alen, 0.04), (ACCESS_X, ay0 + alen / 2, 0.021, 0, 0, 0), DIRT, shadows=False)
 for off in (-0.9, 0.9):
@@ -255,8 +382,9 @@ while placed < TREE_TARGET and tries < 200000:
     kind = "oak" if rng.random() < (0.3 if near_road else 0.08) else "pine"
     s = rng.uniform(1.3, 1.7) if kind == "oak" else rng.uniform(2.6, 4.0)
     crown = TREE_TYPES[kind][3] * s
-    # Kronan får hänga ut över vägkanten men inte ner på lägret
-    if not clear_of_road(x, y, 1.5 + crown * 0.3):
+    # Hela kronan hålls utanför vägkanten så drönaren har fri luftkorridor
+    # ovanför lastbilen
+    if not clear_of_road(x, y, 1.0 + crown):
         continue
     clear = zone_clearance(x, y)
     if clear < crown * 0.75:
@@ -305,7 +433,8 @@ for i in range(60):
     r = WORLD_R * math.sqrt(rng.random())
     a = rng.uniform(0, 2 * math.pi)
     x, y = r * math.cos(a), r * math.sin(a)
-    if not clear_of_road(x, y, 1.5) or zone_clearance(x, y) < 3.0:
+    # Marginalen räknar med största blocket (halvaxel 2.2 * 1.6 m)
+    if not clear_of_road(x, y, 4.5) or zone_clearance(x, y) < 3.0:
         continue
     sz = rng.uniform(0.6, 2.2)
     col = GRANITE if rng.random() < 0.6 else GRANITE_LICHEN
@@ -325,7 +454,8 @@ for i in range(30):
     r = WORLD_R * math.sqrt(rng.random())
     a = rng.uniform(0, 2 * math.pi)
     x, y = r * math.cos(a), r * math.sin(a)
-    if not clear_of_road(x, y, 2) or zone_clearance(x, y) < 6.0:
+    # Marginalen räknar med längsta stocken (9 m) åt valfritt håll
+    if not clear_of_road(x, y, 5.5) or zone_clearance(x, y) < 6.0:
         continue
     L = rng.uniform(4, 9)
     logs.add("cyl", (rng.uniform(0.15, 0.3), L), (x, y, 0.22, 0, math.pi / 2, rng.uniform(0, 3.14)), SPRUCE_BARK, collide=True)
@@ -552,9 +682,7 @@ def build_tgb40(name, p):
 # Bv 206 på uppställningsplatsen, Tgb 40 bredvid, en till Bv 206 ute på vägen
 build_bv206("bv206_1", (10, -13, 0, 0, 0, 1.45))
 build_tgb40("tgb40_1", (17, -14, 0, 0, 0, 1.6))
-_rx = -40.0
-_ryaw = math.atan2(road_y(_rx + 1) - road_y(_rx - 1), 2)
-build_bv206("bv206_2", (_rx, road_y(_rx) + 1.1, 0, 0, 0, _ryaw))
+build_bv206("bv206_2", ROADSIDE_BV)
 
 # ----------------------------------------------------------------------------
 # Skriv SDF
@@ -564,7 +692,7 @@ HEADER = """<?xml version="1.0" ?>
   GENERERAD FIL - redigera inte för hand.
   Källa: worlds/generate_hive_base.py  (kör: python3 worlds/generate_hive_base.py)
 
-  Militärt tältläger i svensk barrskog: fem tält 20, grusväg, Bv 206 och Tgb 40.
+  Militärt tältläger i svensk barrskog: fem tält 20, grusvägsslinga, Bv 206 och Tgb 40.
   Träden läses från /workspace/worlds/trees (repot monterat i containern), resten är SDF-primitiver.
 -->
 <sdf version="1.11">
@@ -621,3 +749,12 @@ FOOTER = """
 
 OUT.write_text(HEADER + "".join(m.sdf() for m in models) + FOOTER)
 print(f"Wrote {OUT} ({placed} trees, {sum(m.n for m in models)} parts)")
+
+# Mittlinjen för lastbilens banföljning (world ENU, en punkt per meter).
+# landing_zone = id för raksträckor där drönaren får landa, annars -1.
+with ROAD_CSV.open("w") as fh:
+    fh.write("s,x,y,heading,curvature,landing_zone\n")
+    for row in ROAD_PTS:
+        fh.write(",".join(f"{v:.4f}" if isinstance(v, float) else str(v) for v in row) + "\n")
+zones = ", ".join(f"{z}: {len(p)} m" for z, p in LANDING_ZONES.items())
+print(f"Wrote {ROAD_CSV} (loop {ROAD_LEN:.0f} m, landing zones {zones})")
