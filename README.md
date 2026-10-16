@@ -20,6 +20,22 @@ On the Stellar computers use `docker/start-stellar.sh` instead (see [docker/READ
 
 The drone takes off from the camp, chases the truck and lands on its bed by itself. Each run writes a CSV to `logs/`. All tuning lives in `ros2_ws/src/flatbed_falcon/config/falcon.yaml` (controller mode and gains, speeds, landing gate, simulated link noise/latency, Kalman filter); `./ros2_ws/run.sh` rebuilds and picks up edits.
 
+### Recording a video
+
+Start with `--record` to also save a Gazebo log of the run (poses only, nearly free) to `logs/gz/<timestamp>/`:
+
+```bash
+cd docker && ./start-dev.sh --record   # or ./start-stellar.sh --record
+```
+
+Afterwards, stop PX4 (Ctrl+C in its terminal) but keep the container running, then replay the newest log with the camera chasing the drone:
+
+```bash
+./docker/replay.sh                     # -f truck to follow the truck, -o -12,0,6 for another offset
+```
+
+In the Gazebo window, click the video camera icon (top left) and pick mp4, press play, and click the icon again to stop. Save under `/workspace/` so the file lands in this folder. The recorder runs on sim time in lockstep with the replay, so a slow Mac only makes the export take longer.
+
 Offline tests (no Gazebo), inside the sim container:
 
 ```bash

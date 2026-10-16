@@ -9,6 +9,7 @@
 #   ./start-dev.sh --model gz_x500_lidar_front
 #   ./start-dev.sh -w forest               # different bundled world
 #   ./start-dev.sh -m gz_x500_depth -w ridge
+#   ./start-dev.sh --record                # also save a Gazebo log to logs/gz/ (replay: replay.sh)
 #
 # Host ports are bound to 127.0.0.1 only and protected by a random VNC password
 # that is printed below. They can be overridden if a port is taken:
@@ -23,6 +24,7 @@ set -e
 
 MODEL="gz_x500_gimbal"
 WORLD="hive_base"
+RECORD=0
 HOST_NOVNC_PORT="${HOST_NOVNC_PORT:-6080}"
 HOST_VNC_PORT="${HOST_VNC_PORT:-5900}"
 WORLD_TIMEOUT="${WORLD_TIMEOUT:-180}"
@@ -36,6 +38,10 @@ while [ $# -gt 0 ]; do
     -w|--world)
       WORLD="$2"
       shift 2
+      ;;
+    --record)
+      RECORD=1
+      shift
       ;;
     -h|--help)
       grep '^#' "$0" | tail -n +2 | sed 's/^# \{0,1\}//'
@@ -55,6 +61,11 @@ fi
 
 cd "$(dirname "$0")"
 
+RECORD_CMD=""
+if [ "$RECORD" = "1" ]; then
+  RECORD_CMD="bash /workspace/docker/enable-log-record.sh ${WORLD}; "
+fi
+
 echo "Building image (flatbed-falcon-px4)..."
 docker build -t flatbed-falcon-px4 .
 
@@ -65,7 +76,7 @@ docker rm -f flatbed-falcon-sim >/dev/null 2>&1 || true
 # Random unless you set your own: VNC_PASSWORD=mypass ./start-dev.sh
 export VNC_PASSWORD="${VNC_PASSWORD:-$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 8)}"
 
-PX4_CMD="until docker inspect -f '{{.State.Running}}' flatbed-falcon-sim 2>/dev/null | grep -q true; do sleep 1; done; docker exec -it flatbed-falcon-sim bash -c 'cp /workspace/worlds/*.sdf /opt/px4-gazebo/share/gz/worlds/ 2>/dev/null || true; export PX4_GZ_WORLD_TIMEOUT=${WORLD_TIMEOUT} PX4_GZ_WORLD=${WORLD} PX4_SIM_MODEL=${MODEL} PX4_GZ_MODEL_POSE=0,0,0,0,0,0; /usr/local/bin/ros2-entrypoint.sh px4-gazebo -i 0'"
+PX4_CMD="until docker inspect -f '{{.State.Running}}' flatbed-falcon-sim 2>/dev/null | grep -q true; do sleep 1; done; docker exec -it flatbed-falcon-sim bash -c 'cp /workspace/worlds/*.sdf /opt/px4-gazebo/share/gz/worlds/ 2>/dev/null || true; ${RECORD_CMD}export PX4_GZ_WORLD_TIMEOUT=${WORLD_TIMEOUT} PX4_GZ_WORLD=${WORLD} PX4_SIM_MODEL=${MODEL} PX4_GZ_MODEL_POSE=0,0,0,0,0,0; /usr/local/bin/ros2-entrypoint.sh px4-gazebo -i 0'"
 
 echo "Opening a new terminal that waits for the container and starts PX4 (model: ${MODEL}, world: ${WORLD})..."
 osascript <<APPLESCRIPT

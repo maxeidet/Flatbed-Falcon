@@ -15,6 +15,7 @@
 #   ./start-stellar.sh --vnc                  # GUI through a browser on this computer instead
 #   ./start-stellar.sh --headless             # no GUI, no ports published
 #   ./start-stellar.sh --no-gpu               # do not give the container the GPU(s), see below
+#   ./start-stellar.sh --record               # also save a Gazebo log to logs/gz/ (replay: replay.sh)
 #
 # --native-gui (default): the Gazebo window opens on the screen you are sitting at
 #   (course students have no remote access, so we always are). No VNC involved.
@@ -44,6 +45,7 @@ MODEL="gz_x500_gimbal"
 WORLD="hive_base"
 GUI_MODE="native"   # native | vnc | headless
 USE_GPU=1          # --no-gpu sets 0
+RECORD=0
 GPU_FLAG_GIVEN=0
 HOST_NOVNC_PORT="${HOST_NOVNC_PORT:-6080}"
 HOST_VNC_PORT="${HOST_VNC_PORT:-5900}"
@@ -73,6 +75,10 @@ while [ $# -gt 0 ]; do
     --gpu)
       USE_GPU=1
       GPU_FLAG_GIVEN=1
+      shift
+      ;;
+    --record)
+      RECORD=1
       shift
       ;;
     --no-gpu)
@@ -199,9 +205,14 @@ echo "  Backend (in a second terminal):  ${REPO_ROOT}/ros2_ws/run.sh"
 echo ""
 echo "Starting PX4 + Gazebo (model: ${MODEL}, world: ${WORLD}). Ctrl+C or 'shutdown' stops everything."
 
+RECORD_CMD=""
+if [ "$RECORD" = "1" ]; then
+  RECORD_CMD="bash /workspace/docker/enable-log-record.sh ${WORLD}; "
+fi
+
 HEADLESS_ENV=""
 if [ "$GUI_MODE" = "headless" ]; then
   HEADLESS_ENV="HEADLESS=1 "
 fi
 
-docker exec -it flatbed-falcon-sim bash -c "cp /workspace/worlds/*.sdf /opt/px4-gazebo/share/gz/worlds/ 2>/dev/null || true; export ${HEADLESS_ENV}PX4_GZ_WORLD=${WORLD} PX4_SIM_MODEL=${MODEL} PX4_GZ_MODEL_POSE=0,0,0,0,0,0; /usr/local/bin/ros2-entrypoint.sh px4-gazebo -i 0"
+docker exec -it flatbed-falcon-sim bash -c "cp /workspace/worlds/*.sdf /opt/px4-gazebo/share/gz/worlds/ 2>/dev/null || true; ${RECORD_CMD}export ${HEADLESS_ENV}PX4_GZ_WORLD=${WORLD} PX4_SIM_MODEL=${MODEL} PX4_GZ_MODEL_POSE=0,0,0,0,0,0; /usr/local/bin/ros2-entrypoint.sh px4-gazebo -i 0"
