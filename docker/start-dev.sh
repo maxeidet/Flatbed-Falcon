@@ -11,6 +11,7 @@
 #   ./start-dev.sh -m gz_x500_depth -w ridge
 #   ./start-dev.sh --record                # also save a Gazebo log to logs/gz/ (replay: replay.sh)
 #   ./start-dev.sh --film                  # add the film cameras (record them with film.sh)
+#   FILM_RES=960x540 FILM_FPS=15 ./start-dev.sh --film # film cameras at lower resolution/frame rate (faster)
 #
 # Host ports are bound to 127.0.0.1 only and protected by a random VNC password
 # that is printed below. They can be overridden if a port is taken:
@@ -72,7 +73,7 @@ if [ "$RECORD" = "1" ]; then
   RECORD_CMD="bash /workspace/docker/enable-log-record.sh ${WORLD}; "
 fi
 if [ "$FILM" = "1" ]; then
-  RECORD_CMD="${RECORD_CMD}python3 /workspace/docker/film_cameras.py /opt/px4-gazebo/share/gz/worlds/${WORLD}.sdf /workspace/worlds/road_centerline.csv; "
+  RECORD_CMD="${RECORD_CMD}FILM_RES=${FILM_RES:-1280x720} FILM_FPS=${FILM_FPS:-25} python3 /workspace/docker/film_cameras.py /opt/px4-gazebo/share/gz/worlds/${WORLD}.sdf /workspace/worlds/road_centerline.csv; "
 fi
 
 echo "Building image (flatbed-falcon-px4)..."

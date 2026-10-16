@@ -14,7 +14,8 @@
 #
 # Videos go to videos/<timestamp>/<shot>.mp4. They record on sim time, so they are smooth
 # and real speed, but every camera slows the sim down while recording (on a Mac a lot):
-# pick a few shots with -s if the run gets too slow.
+# pick a few shots with -s if the run gets too slow, or lower resolution and frame rate when starting:
+#   FILM_RES=960x540 FILM_FPS=15 ./docker/start-stellar.sh --film     (default 1280x720, 25 fps)
 set -e
 
 SHOTS="all"

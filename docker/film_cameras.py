@@ -19,10 +19,20 @@ Fixed tripods beside the three landing zones, placed where no tree blocks the vi
 """
 import csv
 import math
+import os
 import re
 import sys
 
-WIDTH, HEIGHT, FPS = 1280, 720, 25
+# FILM_RES=960x540 FILM_FPS=15 ./docker/start-stellar.sh --film: lower resolution and frame
+# rate, so each camera costs less.
+_fps = os.environ.get('FILM_FPS', '25')
+if not _fps.isdigit() or int(_fps) == 0:
+    sys.exit(f'film_cameras: FILM_FPS must be a whole number like 15, got {_fps!r}')
+FPS = int(_fps)
+_res = re.fullmatch(r'(\d+)x(\d+)', os.environ.get('FILM_RES', '1280x720'))
+if not _res:
+    sys.exit(f"film_cameras: FILM_RES must look like 960x540, got {os.environ.get('FILM_RES')!r}")
+WIDTH, HEIGHT = int(_res.group(1)), int(_res.group(2))
 BED_X, BED_TOP, CHASSIS_Z = -1.15, 1.0, 0.4   # generate_hive_base.py (BED_X, BED_TOP, wheel radius)
 H_TRACK = 4.0                                  # falcon.yaml: drone height above the bed while tracking
 
@@ -123,7 +133,7 @@ def main(sdf_path, csv_path):
     sdf = sdf.replace('</world>', tripods + '</world>', 1)
     open(sdf_path, 'w').write(sdf)
     shots = list(TRUCK_SHOTS) + [f'tripod_z{z}' for z in sorted({r['landing_zone'] for r in rows} - {'-1'})]
-    print('Film cameras added: ' + ', '.join(shots) + ' (record with docker/film.sh)')
+    print(f'Film cameras added at {WIDTH}x{HEIGHT}, {FPS} fps: ' + ', '.join(shots) + ' (record with docker/film.sh)')
 
 
 if __name__ == '__main__':

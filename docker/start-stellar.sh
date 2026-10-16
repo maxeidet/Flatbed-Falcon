@@ -17,6 +17,7 @@
 #   ./start-stellar.sh --no-gpu               # do not give the container the GPU(s), see below
 #   ./start-stellar.sh --record               # also save a Gazebo log to logs/gz/ (replay: replay.sh)
 #   ./start-stellar.sh --film                 # add the film cameras (record them with film.sh)
+#   FILM_RES=960x540 FILM_FPS=15 ./start-stellar.sh --film # film cameras at lower resolution/frame rate (faster)
 #
 # --native-gui (default): the Gazebo window opens on the screen you are sitting at
 #   (course students have no remote access, so we always are). No VNC involved.
@@ -216,7 +217,7 @@ if [ "$RECORD" = "1" ]; then
   RECORD_CMD="bash /workspace/docker/enable-log-record.sh ${WORLD}; "
 fi
 if [ "$FILM" = "1" ]; then
-  RECORD_CMD="${RECORD_CMD}python3 /workspace/docker/film_cameras.py /opt/px4-gazebo/share/gz/worlds/${WORLD}.sdf /workspace/worlds/road_centerline.csv; "
+  RECORD_CMD="${RECORD_CMD}FILM_RES=${FILM_RES:-1280x720} FILM_FPS=${FILM_FPS:-25} python3 /workspace/docker/film_cameras.py /opt/px4-gazebo/share/gz/worlds/${WORLD}.sdf /workspace/worlds/road_centerline.csv; "
 fi
 
 HEADLESS_ENV=""

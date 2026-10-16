@@ -47,7 +47,7 @@ cd docker && ./start-dev.sh --film     # terminal 1
 ./docker/film.sh -s truck_chase,bed_closeup,tripod_z0   # only some angles
 ```
 
-The cameras record on sim time, so the videos are smooth and play at real speed however slow the computer is. Each recording camera slows the sim down instead, a lot on a Mac, so pick a few angles with `-s` if a run takes too long.
+The cameras record on sim time, so the videos are smooth and play at real speed however slow the computer is. Each recording camera slows the sim down instead, a lot on a Mac, so pick a few angles with `-s` if a run takes too long, or start with a lower resolution and frame rate: `FILM_RES=960x540 FILM_FPS=15 ./start-dev.sh --film` (default 1280x720, 25 fps).
 
 Offline tests (no Gazebo), inside the sim container:
 
