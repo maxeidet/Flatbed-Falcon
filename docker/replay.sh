@@ -8,6 +8,7 @@
 #   ./docker/replay.sh -a bed_closeup           # one of the angles below
 #   ./docker/replay.sh 20261016-101500 -a tripod_z0   # a specific log (name under logs/gz/)
 #   ./docker/replay.sh -a truck_chase -p 0.05   # camera smoothing: lower = softer, laggier (0.1)
+#   ./docker/replay.sh -v                       # print Gazebo's full log, to see why it closed
 #
 # Angles (the same as film.sh's cameras, so clips cut together):
 #   drone_chase  behind and above the drone          truck_chase  behind and above the truck
@@ -30,11 +31,13 @@ set -e
 ANGLE="drone_chase"
 PGAIN="0.1"
 LOG=""
+VERBOSE="1"
 
 while [ $# -gt 0 ]; do
   case "$1" in
     -a|--angle) ANGLE="$2"; shift 2 ;;
     -p|--pgain) PGAIN="$2"; shift 2 ;;
+    -v|--verbose) VERBOSE="4"; shift ;;
     -h|--help) grep '^#' "$0" | tail -n +2 | sed 's/^# \{0,1\}//'; exit 0 ;;
     -*) echo "Unknown flag: $1"; exit 1 ;;
     *) LOG="$1"; shift ;;
@@ -81,7 +84,7 @@ fi
 echo "Replaying logs/gz/$NAME from the $ANGLE angle."
 
 docker exec -it \
-  -e LOG_DIR="/workspace/logs/gz/$NAME" -e ANGLE="$ANGLE" -e PGAIN="$PGAIN" \
+  -e LOG_DIR="/workspace/logs/gz/$NAME" -e ANGLE="$ANGLE" -e PGAIN="$PGAIN" -e VERBOSE="$VERBOSE" \
   "$CONTAINER" bash -c '
   # Same model paths PX4 gives Gazebo, in case a mesh was not copied into the log.
   export GZ_SIM_RESOURCE_PATH="${GZ_SIM_RESOURCE_PATH}:/opt/px4-gazebo/share/gz/models:/opt/px4-gazebo/share/gz/worlds"
@@ -110,5 +113,7 @@ CFG
   # Put the camera at the angle once the GUI is up.
   python3 /workspace/docker/replay_camera.py "$ANGLE" "$PGAIN" &
 
-  gz sim --playback "$LOG_DIR"
+  gz sim -v "$VERBOSE" --playback "$LOG_DIR"
+  CODE=$?
+  [ "$CODE" = 0 ] || echo "Gazebo stopped with exit code $CODE. Run again with -v to see why."
 '
