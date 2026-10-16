@@ -97,6 +97,16 @@ docker exec -it \
       || echo "Could not add the video recorder to the replay window."
   fi
 
+  # Replays only need these two systems. PX4 points GZ_SIM_SERVER_CONFIG_PATH at its own
+  # list, which adds the contact system, and that crashes on the replayed bed sensor.
+  cat > /tmp/replay_server.config <<CFG
+<server_config><plugins>
+  <plugin entity_name="*" entity_type="world" filename="gz-sim-user-commands-system" name="gz::sim::systems::UserCommands"/>
+  <plugin entity_name="*" entity_type="world" filename="gz-sim-scene-broadcaster-system" name="gz::sim::systems::SceneBroadcaster"/>
+</plugins></server_config>
+CFG
+  export GZ_SIM_SERVER_CONFIG_PATH=/tmp/replay_server.config
+
   # Put the camera at the angle once the GUI is up.
   python3 /workspace/docker/replay_camera.py "$ANGLE" "$PGAIN" &
 
