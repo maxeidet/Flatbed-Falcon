@@ -61,6 +61,8 @@ cd docker && ./start-stellar.sh --record --film   # --film only for the gimbal v
 ./docker/replay.sh -a drone_chase                 # also truck_chase, truck_side, overhead, bed_closeup, tripod_z0..2
 ```
 
+To film every angle with no clicking, run `./docker/replay_all.sh` instead (or `-s truck_chase,overhead` for some). It opens one replay per angle, saves a screenshot for every frame and writes `videos/<log>/<angle>.mp4`. It takes longer than the run, but the videos keep the real speed. It needs ffmpeg (`python3 -m pip install --user imageio-ffmpeg` if missing).
+
 The drone's gimbal camera can only be filmed live (`film.sh -s gimbal`), since sensors do not run in a replay.
 
 ### Tracker view

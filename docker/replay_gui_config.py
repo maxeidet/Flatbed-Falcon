@@ -19,3 +19,8 @@ if block:
 else:
     text += f'\n<plugin filename="VideoRecorder" name="VideoRecorder">{RECORD}</plugin>\n'
 open(dst, 'w').write(text)
+
+# replay.sh --auto films by asking this plugin for a screenshot of every frame.
+if not re.search(r'<plugin filename="Screenshot"', text):
+    text += '\n<plugin filename="Screenshot" name="Screenshot"></plugin>\n'
+    open(dst, 'w').write(text)

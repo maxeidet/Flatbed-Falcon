@@ -9,6 +9,8 @@
 #   ./docker/replay.sh 20261016-101500 -a tripod_z0   # a specific log (name under logs/gz/)
 #   ./docker/replay.sh -a truck_chase -p 0.05   # camera smoothing: lower = softer, laggier (0.1)
 #   ./docker/replay.sh -v                       # print Gazebo's full log, to see why it closed
+#   ./docker/replay.sh -a overhead --auto       # film it with no clicking: videos/<log>/overhead.mp4
+#                                               # (replay_all.sh does this for every angle)
 #
 # Angles (the same as film.sh's cameras, so clips cut together):
 #   drone_chase  behind and above the drone          truck_chase  behind and above the truck
@@ -29,8 +31,10 @@
 set -e
 
 ANGLE="drone_chase"
-PGAIN="0.1"
+PGAIN=""
 LOG=""
+AUTO=0
+FPS="${FILM_FPS:-25}"
 VERBOSE="1"
 
 while [ $# -gt 0 ]; do
@@ -38,11 +42,16 @@ while [ $# -gt 0 ]; do
     -a|--angle) ANGLE="$2"; shift 2 ;;
     -p|--pgain) PGAIN="$2"; shift 2 ;;
     -v|--verbose) VERBOSE="4"; shift ;;
+    --auto) AUTO=1; shift ;;
     -h|--help) grep '^#' "$0" | tail -n +2 | sed 's/^# \{0,1\}//'; exit 0 ;;
     -*) echo "Unknown flag: $1"; exit 1 ;;
     *) LOG="$1"; shift ;;
   esac
 done
+
+# --auto films frame by frame, so the camera gets many more GUI frames per video frame:
+# a lower gain gives about the same smoothing as watching live.
+[ -n "$PGAIN" ] || { [ "$AUTO" = 1 ] && PGAIN="0.04" || PGAIN="0.1"; }
 
 cd "$(dirname "$0")/.."
 
@@ -85,6 +94,7 @@ echo "Replaying logs/gz/$NAME from the $ANGLE angle."
 
 docker exec -it \
   -e LOG_DIR="/workspace/logs/gz/$NAME" -e ANGLE="$ANGLE" -e PGAIN="$PGAIN" -e VERBOSE="$VERBOSE" \
+  -e AUTO="$AUTO" -e FPS="$FPS" -e FRAMES="/workspace/videos/$NAME/frames_$ANGLE" \
   "$CONTAINER" bash -c '
   # Same model paths PX4 gives Gazebo, in case a mesh was not copied into the log.
   export GZ_SIM_RESOURCE_PATH="${GZ_SIM_RESOURCE_PATH}:/opt/px4-gazebo/share/gz/models:/opt/px4-gazebo/share/gz/worlds"
@@ -110,6 +120,18 @@ docker exec -it \
 CFG
   export GZ_SIM_SERVER_CONFIG_PATH=/tmp/replay_server.config
 
+  if [ "$AUTO" = 1 ]; then
+    # gz Python bindings (for fast service calls) come with ROS.
+    [ -f /opt/ros/jazzy/setup.bash ] && source /opt/ros/jazzy/setup.bash
+    gz sim -v "$VERBOSE" --playback "$LOG_DIR" &
+    GZ_PID=$!
+    python3 /workspace/docker/replay_camera.py "$ANGLE" "$PGAIN" \
+      && python3 /workspace/docker/replay_frames.py "$LOG_DIR" "$FRAMES" "$FPS"
+    CODE=$?
+    kill -INT "$GZ_PID" 2>/dev/null; wait "$GZ_PID" 2>/dev/null
+    exit "$CODE"
+  fi
+
   # Put the camera at the angle once the GUI is up.
   python3 /workspace/docker/replay_camera.py "$ANGLE" "$PGAIN" &
 
@@ -117,3 +139,7 @@ CFG
   CODE=$?
   [ "$CODE" = 0 ] || echo "Gazebo stopped with exit code $CODE. Run again with -v to see why."
 '
+
+if [ "$AUTO" = 1 ]; then
+  python3 tools/frames_to_mp4.py "videos/$NAME/frames_$ANGLE" "videos/$NAME/$ANGLE.mp4" --fps "$FPS"
+fi
