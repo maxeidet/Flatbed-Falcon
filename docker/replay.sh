@@ -23,9 +23,9 @@
 #
 # Filming: in the Gazebo window click the video camera button (in its own small panel,
 # or top left) and pick mp4,
-# press play (bottom left), and click the icon again when done. Save under /workspace/
-# so the mp4 lands in this repo. The recorder runs on sim time in lockstep with the
-# replay, so a slow computer makes the export slower but the video stays smooth.
+# press play (bottom left), and click the icon again before the log ends. Save under
+# /workspace/ so the mp4 lands in this repo. The recorder runs on sim time, so the video
+# plays at the run's real speed. Don't drag the time slider while recording.
 set -e
 
 ANGLE="drone_chase"
@@ -91,7 +91,7 @@ docker exec -it \
 
   # Gazebo only replays properly with its own playback layout (passing --gui-config
   # makes it show the start menu instead), so write ours where it looks for that layout:
-  # the installed playback layout plus a video recorder on sim time + lockstep.
+  # the installed playback layout plus a video recorder on sim time.
   PB_GUI=$(ls /usr/share/gz/gz-sim*/gui/playback_gui.config 2>/dev/null | tail -n 1)
   if [ -n "$PB_GUI" ]; then
     MAJOR=$(basename "$(dirname "$(dirname "$PB_GUI")")" | tr -dc "0-9")

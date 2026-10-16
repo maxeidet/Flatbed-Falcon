@@ -1,11 +1,12 @@
 """Copies Gazebo's playback GUI config and adds (or adjusts) a video recorder that records
-on sim time, in lockstep with the replay, so every frame is captured however slow rendering is.
+on sim time, so the video plays at real speed. Lockstep is off: it froze the window
+whenever the replay was paused or at its end.
 Used by replay.sh inside the sim container:  python3 replay_gui_config.py <playback config> <out>
 """
 import re
 import sys
 
-RECORD = ('<record_video><use_sim_time>true</use_sim_time><lockstep>true</lockstep>'
+RECORD = ('<record_video><use_sim_time>true</use_sim_time><lockstep>false</lockstep>'
           '<bitrate>8000000</bitrate></record_video>')
 
 src, dst = sys.argv[1], sys.argv[2]
