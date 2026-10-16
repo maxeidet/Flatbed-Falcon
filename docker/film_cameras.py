@@ -14,8 +14,10 @@ Shots on the truck move with it (they are sensors on the chassis link, no extra 
   overhead      straight down from 35 m, the drone over the bed
 Fixed tripods beside the three landing zones, placed where no tree blocks the view:
   tripod_z0, tripod_z1, tripod_z2
+And the drone's own gimbal camera (PX4's model, so it is patched in the models folder):
+  gimbal
 
-    python3 film_cameras.py <world.sdf> <road_centerline.csv>
+    python3 film_cameras.py <world.sdf> <road_centerline.csv> [<PX4 models dir>]
 """
 import csv
 import math
@@ -85,8 +87,8 @@ def seg_dist(px, py, ax, ay, bx, by):
     return math.hypot(px - ax - t * vx, py - ay - t * vy)
 
 
-def tripod(name, zone_rows, tree_list):
-    """A static camera beside the middle of a landing zone, on whichever side has a clear view."""
+def tripod_pose(zone_rows, tree_list):
+    """Position beside the middle of a landing zone with a clear view, and the point it looks at."""
     mid = zone_rows[len(zone_rows) // 2]
     x, y, h = float(mid['x']), float(mid['y']), float(mid['heading'])
     target = (x, y, BED_TOP + 1.5)
@@ -107,34 +109,66 @@ def tripod(name, zone_rows, tree_list):
         if best[0] > 1.0:
             break
     _, cx, cy = best
-    p = (cx, cy, 4.0)
+    return (cx, cy, 4.0), target
+
+
+def tripod_poses(sdf, rows):
+    """{'tripod_z0': (position, look-at point), ...} for every landing zone in the road CSV."""
+    tree_list = trees(sdf)
+    zones = sorted({r['landing_zone'] for r in rows} - {'-1'})
+    return {f'tripod_z{z}': tripod_pose([r for r in rows if r['landing_zone'] == z], tree_list)
+            for z in zones}
+
+
+def tripod(name, p, target):
+    """A static camera model at p looking at target."""
     return (
         f'<model name="film_{name}"><static>true</static><pose>{fmt(*p, *look_at(p, target))}</pose>'
         f'<link name="link">{sensor(name, (0, 0, 0), (1, 0, 0), 1.2)}</link></model>'
     )
 
 
-def main(sdf_path, csv_path):
-    sdf = open(sdf_path).read()
-    if 'name="truck_chase"' in sdf:
-        print('film_cameras: cameras already in the world')
-        return
-    i = sdf.index('<model name="truck">')
-    j = sdf.index('<link name="chassis">', i)
-    k = sdf.index('</link>', j)
-    sdf = sdf[:k] + ''.join(sensor(n, *s) for n, s in TRUCK_SHOTS.items()) + sdf[k:]
+def patch_gimbal(models_dir):
+    """Adds a recorder to the drone's own gimbal camera (PX4's gimbal model), as shot 'gimbal'.
+    It records exactly what the drone's camera sees, at the camera's own resolution."""
+    path = os.path.join(models_dir, 'gimbal', 'model.sdf')
+    if not os.path.exists(path):
+        print(f'film_cameras: {path} not found, no gimbal shot')
+        return False
+    text = open(path).read()
+    if '/film/gimbal/record_video' in text:
+        return True
+    i = text.find('<sensor name="camera" type="camera">')
+    if i < 0:
+        print(f'film_cameras: no camera sensor in {path}, no gimbal shot')
+        return False
+    k = text.index('</sensor>', i)
+    plugin = ('<plugin filename="gz-sim-camera-video-recorder-system" name="gz::sim::systems::CameraVideoRecorder">'
+              '<service>/film/gimbal/record_video</service><use_sim_time>true</use_sim_time>'
+              f'<fps>{FPS}</fps><bitrate>8000000</bitrate></plugin>')
+    open(path, 'w').write(text[:k] + plugin + text[k:])
+    return True
 
+
+def main(sdf_path, csv_path, models_dir=None):
+    sdf = open(sdf_path).read()
+    shots = list(TRUCK_SHOTS)
     rows = list(csv.DictReader(open(csv_path)))
-    tree_list = trees(sdf)
-    tripods = ''
-    for zone in sorted({r['landing_zone'] for r in rows} - {'-1'}):
-        tripods += tripod(f'tripod_z{zone}', [r for r in rows if r['landing_zone'] == zone],
-                          tree_list) + '\n    '
-    sdf = sdf.replace('</world>', tripods + '</world>', 1)
-    open(sdf_path, 'w').write(sdf)
-    shots = list(TRUCK_SHOTS) + [f'tripod_z{z}' for z in sorted({r['landing_zone'] for r in rows} - {'-1'})]
-    print(f'Film cameras added at {WIDTH}x{HEIGHT}, {FPS} fps: ' + ', '.join(shots) + ' (record with docker/film.sh)')
+    if 'name="truck_chase"' not in sdf:
+        i = sdf.index('<model name="truck">')
+        j = sdf.index('<link name="chassis">', i)
+        k = sdf.index('</link>', j)
+        sdf = sdf[:k] + ''.join(sensor(n, *s) for n, s in TRUCK_SHOTS.items()) + sdf[k:]
+        poses = tripod_poses(sdf, rows)
+        sdf = sdf.replace('</world>', ''.join(tripod(n, *pt) + '\n    ' for n, pt in poses.items())
+                          + '</world>', 1)
+        open(sdf_path, 'w').write(sdf)
+    shots += list(tripod_poses(sdf, rows))
+    if models_dir and patch_gimbal(models_dir):
+        shots.append('gimbal')
+    print(f'Film cameras added at {WIDTH}x{HEIGHT}, {FPS} fps: ' + ', '.join(shots)
+          + ' (record with docker/film.sh)')
 
 
 if __name__ == '__main__':
-    main(sys.argv[1], sys.argv[2])
+    main(*sys.argv[1:4])

@@ -10,6 +10,7 @@
 #        truck_chase  behind and above the truck    truck_side   alongside the truck
 #        bed_closeup  cab roof, looking at the bed  overhead     straight down from 35 m
 #        tripod_z0 / tripod_z1 / tripod_z2   fixed cameras beside the three landing zones
+#        gimbal       the drone's own gimbal camera, what the drone sees
 #   -t 20                       seconds (sim time) to keep filming after touchdown; 0 = only Enter
 #
 # Videos go to videos/<timestamp>/<shot>.mp4. They record on sim time, so they are smooth

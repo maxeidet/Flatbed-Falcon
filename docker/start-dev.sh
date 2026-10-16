@@ -73,7 +73,7 @@ if [ "$RECORD" = "1" ]; then
   RECORD_CMD="bash /workspace/docker/enable-log-record.sh ${WORLD}; "
 fi
 if [ "$FILM" = "1" ]; then
-  RECORD_CMD="${RECORD_CMD}FILM_RES=${FILM_RES:-1280x720} FILM_FPS=${FILM_FPS:-25} python3 /workspace/docker/film_cameras.py /opt/px4-gazebo/share/gz/worlds/${WORLD}.sdf /workspace/worlds/road_centerline.csv; "
+  RECORD_CMD="${RECORD_CMD}FILM_RES=${FILM_RES:-1280x720} FILM_FPS=${FILM_FPS:-25} python3 /workspace/docker/film_cameras.py /opt/px4-gazebo/share/gz/worlds/${WORLD}.sdf /workspace/worlds/road_centerline.csv /opt/px4-gazebo/share/gz/models; "
 fi
 
 echo "Building image (flatbed-falcon-px4)..."

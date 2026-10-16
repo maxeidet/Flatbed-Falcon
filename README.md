@@ -49,6 +49,30 @@ cd docker && ./start-dev.sh --film     # terminal 1
 
 The cameras record on sim time, so the videos are smooth and play at real speed however slow the computer is. Each recording camera slows the sim down instead, a lot on a Mac, so pick a few angles with `-s` if a run takes too long, or start with a lower resolution and frame rate: `FILM_RES=960x540 FILM_FPS=15 ./start-dev.sh --film` (default 1280x720, 25 fps).
 
+### Filming the same run from many angles (cheapest)
+
+Record the run with `--record` (it only saves poses, so the sim runs at normal speed), then replay it once per angle and film each pass with the Gazebo window's video button (top left, pick mp4, press play, click again to stop and save under `/workspace/`):
+
+```bash
+cd docker && ./start-stellar.sh --record --film   # --film only for the gimbal view below
+./ros2_ws/run.sh
+./docker/film.sh -s gimbal                        # optional: the drone's own camera, live (one camera, cheap)
+# after the landing, stop PX4, then once per angle:
+./docker/replay.sh -a drone_chase                 # also truck_chase, truck_side, overhead, bed_closeup, tripod_z0..2
+```
+
+The drone's gimbal camera can only be filmed live (`film.sh -s gimbal`), since sensors do not run in a replay.
+
+### Tracker view
+
+The drone does not see the truck through its camera: it flies to the bed position it receives over the simulated link, after filtering. `tools/tracker_video.py` turns a run's CSV log into a video of exactly that (top-down: real truck and bed, link measurements, the filtered aim point, the drone, plus state, errors and height over time), with sim time in the corner so it lines up with the camera clips:
+
+```bash
+python3 tools/tracker_video.py                    # newest logs/run_*.csv -> videos/tracker_run_....mp4
+```
+
+It needs matplotlib and ffmpeg (`python3 -m pip install --user matplotlib imageio-ffmpeg` if missing).
+
 Offline tests (no Gazebo), inside the sim container:
 
 ```bash

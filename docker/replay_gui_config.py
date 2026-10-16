@@ -1,6 +1,6 @@
-"""Copies Gazebo's default GUI config and makes its video recorder record on sim time,
-in lockstep with the replay, so every frame is captured however slow rendering is.
-Used by replay.sh inside the sim container:  python3 replay_gui_config.py <default> <out>
+"""Copies Gazebo's playback GUI config and adds (or adjusts) a video recorder that records
+on sim time, in lockstep with the replay, so every frame is captured however slow rendering is.
+Used by replay.sh inside the sim container:  python3 replay_gui_config.py <playback config> <out>
 """
 import re
 import sys

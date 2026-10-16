@@ -14,6 +14,8 @@ import threading
 import time
 
 WORLD = 'hive_base'
+# The gimbal camera is PX4's own sensor, so its image topic is not under /film/.
+IMAGE_TOPICS = {'gimbal': f'/world/{WORLD}/model/x500_gimbal_0/link/camera_link/sensor/camera/image'}
 
 
 def gz(*args, timeout=10):
@@ -78,7 +80,7 @@ def main(out_dir, wanted, after_touchdown):
 
     # A camera only finishes its file on its next render, and nothing renders once every
     # recorder has unsubscribed. Keep one camera subscribed until all files are written.
-    keep = subprocess.Popen(['gz', 'topic', '-e', '-t', f'/film/{started[0]}/image'],
+    keep = subprocess.Popen(['gz', 'topic', '-e', '-t', IMAGE_TOPICS.get(started[0], f'/film/{started[0]}/image')],
                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     for s in started:
         record(s, False)
