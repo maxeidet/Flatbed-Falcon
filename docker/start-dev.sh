@@ -10,6 +10,7 @@
 #   ./start-dev.sh -w forest               # different bundled world
 #   ./start-dev.sh -m gz_x500_depth -w ridge
 #   ./start-dev.sh --record                # also save a Gazebo log to logs/gz/ (replay: replay.sh)
+#   ./start-dev.sh --film                  # add the film cameras (record them with film.sh)
 #
 # Host ports are bound to 127.0.0.1 only and protected by a random VNC password
 # that is printed below. They can be overridden if a port is taken:
@@ -25,6 +26,7 @@ set -e
 MODEL="gz_x500_gimbal"
 WORLD="hive_base"
 RECORD=0
+FILM=0
 HOST_NOVNC_PORT="${HOST_NOVNC_PORT:-6080}"
 HOST_VNC_PORT="${HOST_VNC_PORT:-5900}"
 WORLD_TIMEOUT="${WORLD_TIMEOUT:-180}"
@@ -41,6 +43,10 @@ while [ $# -gt 0 ]; do
       ;;
     --record)
       RECORD=1
+      shift
+      ;;
+    --film)
+      FILM=1
       shift
       ;;
     -h|--help)
@@ -64,6 +70,9 @@ cd "$(dirname "$0")"
 RECORD_CMD=""
 if [ "$RECORD" = "1" ]; then
   RECORD_CMD="bash /workspace/docker/enable-log-record.sh ${WORLD}; "
+fi
+if [ "$FILM" = "1" ]; then
+  RECORD_CMD="${RECORD_CMD}python3 /workspace/docker/film_cameras.py /opt/px4-gazebo/share/gz/worlds/${WORLD}.sdf /workspace/worlds/road_centerline.csv; "
 fi
 
 echo "Building image (flatbed-falcon-px4)..."

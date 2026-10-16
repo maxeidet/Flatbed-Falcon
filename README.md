@@ -36,6 +36,19 @@ Afterwards, stop PX4 (Ctrl+C in its terminal) but keep the container running, th
 
 In the Gazebo window, click the video camera icon (top left) and pick mp4, press play, and click the icon again to stop. Save under `/workspace/` so the file lands in this folder. The recorder runs on sim time in lockstep with the replay, so a slow Mac only makes the export take longer.
 
+### Filming several angles
+
+`--film` adds camera rigs to the world: four that ride with the truck (chase, side, cab roof looking at the bed, overhead) and a fixed tripod beside each landing zone. `film.sh` records them all at once from the same run, one mp4 per angle in `videos/<timestamp>/`, so the clips line up when you edit them together:
+
+```bash
+cd docker && ./start-dev.sh --film     # terminal 1
+./ros2_ws/run.sh                       # terminal 2
+./docker/film.sh                       # terminal 3: Enter stops, or it stops 20 s after touchdown
+./docker/film.sh -s truck_chase,bed_closeup,tripod_z0   # only some angles
+```
+
+The cameras record on sim time, so the videos are smooth and play at real speed however slow the computer is. Each recording camera slows the sim down instead, a lot on a Mac, so pick a few angles with `-s` if a run takes too long.
+
 Offline tests (no Gazebo), inside the sim container:
 
 ```bash

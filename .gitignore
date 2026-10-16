@@ -227,3 +227,6 @@ ros2_ws/log/
 
 # Run logs from the logger node
 logs/
+
+# Videos from docker/film.sh
+videos/

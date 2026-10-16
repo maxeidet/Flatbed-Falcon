@@ -8,8 +8,9 @@
 #   ./docker/replay.sh -f truck                 # follow the truck instead
 #   ./docker/replay.sh -o -12,0,6               # camera offset from the target in metres (x,y,z)
 #
-# The sim container must be running (start-dev.sh / start-stellar.sh), but the live sim
-# must not: stop PX4 first (Ctrl+C in its terminal, or `shutdown` at pxh>).
+# On a Mac the sim container must be running (start-dev.sh) but the live sim must not:
+# stop PX4 first (Ctrl+C in its terminal). On Stellar, PX4 stopping removes the container,
+# so the script starts a temporary one that draws on this computer's screen.
 #
 # Filming: in the Gazebo window click the video camera icon (top left) and pick mp4,
 # press play (bottom left), and click the icon again when done. Save under /workspace/
@@ -42,11 +43,28 @@ if [ -z "$NAME" ] || [ ! -d "logs/gz/$NAME" ]; then
   exit 1
 fi
 
-if [ "$(docker inspect -f '{{.State.Running}}' flatbed-falcon-sim 2>/dev/null)" != "true" ]; then
-  echo "The sim container is not running. Start it with ./docker/start-dev.sh (or start-stellar.sh)."
-  exit 1
+CONTAINER="flatbed-falcon-sim"
+if [ "$(docker inspect -f '{{.State.Running}}' "$CONTAINER" 2>/dev/null)" != "true" ]; then
+  if [ "$(uname -s)" = "Linux" ] && [ -n "${DISPLAY:-}" ]; then
+    # Stellar: start-stellar.sh removes its container when PX4 stops, so start a
+    # temporary one from the same image that draws on this computer's screen.
+    CONTAINER="flatbed-falcon-replay"
+    GPU_ARGS=()
+    command -v nvidia-smi >/dev/null 2>&1 && GPU_ARGS=(--device nvidia.com/gpu=all)
+    XAUTH_FILE="${XAUTHORITY:-$HOME/.Xauthority}"
+    XAUTH_ARGS=()
+    [ -f "$XAUTH_FILE" ] && XAUTH_ARGS=(-e XAUTHORITY=/tmp/.Xauthority -v "${XAUTH_FILE}":/tmp/.Xauthority:ro)
+    docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
+    trap 'docker rm -f "$CONTAINER" >/dev/null 2>&1 || true' EXIT
+    docker run -d --rm --name "$CONTAINER" "${GPU_ARGS[@]}" "${XAUTH_ARGS[@]}" \
+      -e "DISPLAY=${DISPLAY}" -e NO_VNC=1 -e QT_X11_NO_MITSHM=1 -v /tmp/.X11-unix:/tmp/.X11-unix \
+      -v "$(pwd)":/workspace flatbed-falcon-px4 sleep infinity >/dev/null
+  else
+    echo "The sim container is not running. Start it with ./docker/start-dev.sh (or start-stellar.sh)."
+    exit 1
+  fi
 fi
-if docker exec flatbed-falcon-sim pgrep -f "gz sim" >/dev/null; then
+if docker exec "$CONTAINER" pgrep -f "gz sim" >/dev/null; then
   echo "Gazebo is still running in the container. Stop PX4 first (Ctrl+C in its terminal)."
   exit 1
 fi
@@ -56,7 +74,7 @@ echo "Replaying logs/gz/$NAME, camera follows $FOLLOW at offset ($OX, $OY, $OZ).
 
 docker exec -it \
   -e LOG_DIR="/workspace/logs/gz/$NAME" -e FOLLOW="$FOLLOW" -e OX="$OX" -e OY="$OY" -e OZ="$OZ" \
-  flatbed-falcon-sim bash -c '
+  "$CONTAINER" bash -c '
   # Same model paths PX4 gives Gazebo, in case a mesh was not copied into the log.
   export GZ_SIM_RESOURCE_PATH="${GZ_SIM_RESOURCE_PATH}:/opt/px4-gazebo/share/gz/models:/opt/px4-gazebo/share/gz/worlds"
 
