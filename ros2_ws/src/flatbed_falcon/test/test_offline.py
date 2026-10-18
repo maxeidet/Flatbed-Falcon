@@ -182,7 +182,7 @@ def run_landing(road, control: logic.ControlParams, link=LinkParams(), use_filte
     return states, landed_at, zone_at_landing, t
 
 
-@pytest.mark.parametrize('mode', ['pd', 'pid', 'lqr', 'px4'])
+@pytest.mark.parametrize('mode', ['pd', 'pid', 'lqr', 'lqi', 'px4'])
 def test_landing_ground_truth(road, mode):
     states, e_touchdown, zone, t = run_landing(road, logic.ControlParams(mode=mode))
     assert states[:4] == ['IDLE', 'TAKEOFF', 'APPROACH', 'TRACK'], states
@@ -195,16 +195,23 @@ def test_landing_ground_truth(road, mode):
 X500_DRAG = 0.16
 
 
-@pytest.mark.parametrize('mode', ['pid', 'px4'])
+@pytest.mark.parametrize('mode', ['pid', 'lqi', 'px4'])
 def test_landing_with_drag(road, mode):
     states, e_touchdown, zone, t = run_landing(road, logic.ControlParams(mode=mode), drag=X500_DRAG)
     assert states[-1] == 'LANDED', states
     assert e_touchdown < 0.3
 
 
-def test_pd_lags_behind_with_drag(road):
-    """A PD holds the drag with a steady error drag * v / kp > the 0.3 m gate: never lands."""
-    states, _, _, _ = run_landing(road, logic.ControlParams(mode='pd'), drag=X500_DRAG, t_max=150)
+def test_lqi_gains():
+    """LQI gives all three gains, and a stable loop (ki < kp kd for the double integrator)."""
+    kp, kd, ki = logic.ControlParams(mode='lqi').gains()
+    assert kp > 0 and kd > 0 and 0 < ki < kp * kd
+
+
+@pytest.mark.parametrize('mode', ['pd', 'lqr'])
+def test_no_integral_lags_behind_with_drag(road, mode):
+    """PD and LQR hold the drag with a steady error drag * v / kp > the 0.3 m gate: never land."""
+    states, _, _, _ = run_landing(road, logic.ControlParams(mode=mode), drag=X500_DRAG, t_max=150)
     assert 'DESCEND' not in states
 
 
@@ -214,6 +221,23 @@ def test_landing_noisy_link_with_filter(road):
                                                drag=X500_DRAG)
     assert states[-1] == 'LANDED', states
     assert e_touchdown < 0.4
+
+
+def test_filter_smooths_height():
+    """The bed height is filtered too: raw height noise made the drone's height ramp
+    jitter and kept it outside the descent gate's height window in Gazebo."""
+    link = SimulatedLink(LinkParams(pos_noise=0.3, vel_noise=0.2, seed=2))
+    estimator = TargetEstimator(True, 1.0, 0.3, 0.2)
+    heights = []
+    for k in range(2000):
+        t = k * 0.02
+        link.send(Measurement(t, np.array([4.0 * t, 0.0, -1.0]), np.array([4.0, 0.0, 0.0]), 0.0, 0.0))
+        for m in link.receive(t):
+            estimator.update(m)
+        if k > 250:
+            heights.append(estimator.estimate(t)[0][2])
+    assert abs(np.mean(heights) + 1.0) < 0.05
+    assert np.std(heights) < 0.1  # the measurement noise is 0.3 m
 
 
 def test_gimbal_angles():

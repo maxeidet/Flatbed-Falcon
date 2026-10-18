@@ -67,6 +67,29 @@ def follow_old(target, offset):
        '--timeout', '3000', '--req', vec(offset).strip('{} ').replace(' y', ', y').replace(' z', ', z'))
 
 
+def wait_for_model(name, max_s=30):
+    """PX4 spawns the drone a few seconds into the log, so at the start of a replay it does
+    not exist yet and a camera following it gets an empty target. Steps the paused replay
+    forward one second at a time until the model is there. Returns the sim time it stopped
+    at, or None if the model was there already."""
+    def present():
+        return f'- {name}' in gz('model', '--list')
+
+    if present():
+        return None
+    control = next((s for s in gz('service', '-l').split() if s.endswith('/playback/control')), None)
+    if not control:
+        return None
+    for sec in range(1, max_s + 1):
+        gz('service', '-s', control, '--reqtype', 'gz.msgs.LogPlaybackControl', '--reptype', 'gz.msgs.Boolean',
+           '--timeout', '3000', '--req', f'pause: true seek {{ sec: {sec} }}')
+        time.sleep(0.5)
+        if present():
+            return sec
+    print(f'{name} did not appear in the first {max_s} s of the log.')
+    return None
+
+
 def main(angle, pgain=0.1):
     tripods = {}
     if angle.startswith('tripod_'):
@@ -84,6 +107,12 @@ def main(angle, pgain=0.1):
     else:
         sys.exit('The Gazebo GUI did not come up, so the camera angle was not set.')
     time.sleep(2)
+
+    needed = {DRONE} if angle in tripods else {n for n in FOLLOW[angle][::2] if n}
+    if DRONE in needed:
+        at = wait_for_model(DRONE)
+        if at is not None:
+            print(f'The drone appears at sim time {at} s: the replay is paused there.')
 
     gains = f'follow_pgain: {pgain} track_pgain: {pgain}'
     has_track = '/gui/track' in gz('topic', '-l')

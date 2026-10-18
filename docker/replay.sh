@@ -133,7 +133,9 @@ CFG
   fi
 
   # Put the camera at the angle once the GUI is up.
-  python3 /workspace/docker/replay_camera.py "$ANGLE" "$PGAIN" &
+  # Do not rewind the replay: after seeking backwards Gazebo playback does not bring back
+  # the models, so the drone and truck vanish. Close the window and start again instead.
+  python3 -u /workspace/docker/replay_camera.py "$ANGLE" "$PGAIN" &
 
   gz sim -v "$VERBOSE" --playback "$LOG_DIR"
   CODE=$?

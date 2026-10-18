@@ -26,12 +26,12 @@ target_tracker:
     bed_offset: [-1.15, 0.0, 1.0]  # bed surface centre in the truck frame (forward, left, up)
     rate_hz: 50.0
     predict_ahead: 0.0
-    use_filter: false              # constant-velocity Kalman filter (phase 7)
+    use_filter: true               # constant-velocity Kalman filter (phase 7)
     filter_accel_std: 1.0
-    link_pos_noise: 0.0            # simulated radio link (phase 3), all off = ground truth
-    link_vel_noise: 0.0
-    link_latency: 0.0
-    link_dropout: 0.0
+    link_pos_noise: 0.1            # simulated radio link (phase 3), all off = ground truth
+    link_vel_noise: 0.05
+    link_latency: 0.1
+    link_dropout: 0.05
     link_seed: 0
 
 landing_controller:

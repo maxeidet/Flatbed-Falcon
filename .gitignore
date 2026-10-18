@@ -230,3 +230,4 @@ logs/
 
 # Videos from docker/film.sh
 videos/
+*.mp4

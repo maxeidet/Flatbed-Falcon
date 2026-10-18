@@ -11,7 +11,9 @@ acceleration. PX4 gets the result as an acceleration setpoint for x and y.
 mode 'pid' adds the integral term (the default): the x500's rotor drag in Gazebo is a
 constant force at constant speed, and a PD can only hold it with a constant error
 (drag / kp, about 0.5 m behind the bed at 4 m/s). mode 'lqr' takes kp, kd from a
-discrete LQR on the same double integrator, and mode 'px4' sends position + velocity
+discrete LQR on the same double integrator (no integral, so it lags like the PD), mode
+'lqi' takes kp, kd and ki from an LQR on the double integrator augmented with the
+integral of the position error (state [integral e, e, de/dt]), and mode 'px4' sends position + velocity
 feed-forward and lets PX4's own loops (which have an integrator) do the work.
 
 The vertical axis is a separate height profile driven by the state machine.
@@ -30,7 +32,7 @@ TRACKING_STATES = (TRACK, DESCEND, TOUCHDOWN, ABORT)
 
 @dataclass
 class ControlParams:
-    mode: str = 'pid'          # 'pd' | 'pid' | 'lqr' | 'px4'
+    mode: str = 'pid'          # 'pd' | 'pid' | 'lqr' | 'lqi' | 'px4'
     kp: float = 1.2            # 1/s^2
     kd: float = 2.2            # 1/s  (zeta = kd / (2 sqrt(kp)) = 1.0)
     ki: float = 0.3            # 1/s^3, only used in mode 'pid' (stable while ki < kp kd)
@@ -39,24 +41,33 @@ class ControlParams:
     lqr_q_pos: float = 1.0     # mode 'lqr': Q = diag(q_pos, q_vel), R = r
     lqr_q_vel: float = 0.3
     lqr_r: float = 0.8
+    lqi_q_int: float = 0.3     # mode 'lqi': Q = diag(q_int, q_pos, q_vel), same q_pos, q_vel, r
     rate_hz: float = 20.0
     v_rel_max: float = 10.0    # chase speed relative to the truck (m/s)
     v_max: float = 12.0        # absolute horizontal speed limit (PX4 default MPC_XY_VEL_MAX)
     a_max: float = 4.0         # horizontal acceleration limit (m/s^2), about 22 degrees tilt
 
     def gains(self):
-        """(kp, kd) actually used: the LQR gains in mode 'lqr'."""
-        if self.mode != 'lqr':
-            return self.kp, self.kd
+        """(kp, kd, ki) actually used: from the Riccati equation in modes 'lqr' and 'lqi'."""
+        if self.mode not in ('lqr', 'lqi'):
+            return self.kp, self.kd, self.ki
         from scipy.linalg import solve_discrete_are
         dt = 1.0 / self.rate_hz
-        A = np.array([[1.0, dt], [0.0, 1.0]])
-        B = np.array([[dt * dt / 2], [dt]])
-        Q = np.diag([self.lqr_q_pos, self.lqr_q_vel])
+        if self.mode == 'lqr':
+            A = np.array([[1.0, dt], [0.0, 1.0]])
+            B = np.array([[dt * dt / 2], [dt]])
+            Q = np.diag([self.lqr_q_pos, self.lqr_q_vel])
+        else:
+            # [integral of e, e, de/dt]: the integral grows by e * dt each step.
+            A = np.array([[1.0, dt, 0.0], [0.0, 1.0, dt], [0.0, 0.0, 1.0]])
+            B = np.array([[0.0], [dt * dt / 2], [dt]])
+            Q = np.diag([self.lqi_q_int, self.lqr_q_pos, self.lqr_q_vel])
         R = np.array([[self.lqr_r]])
         P = solve_discrete_are(A, B, Q, R)
-        K = np.linalg.solve(R + B.T @ P @ B, B.T @ P @ A)
-        return float(K[0, 0]), float(K[0, 1])
+        K = np.linalg.solve(R + B.T @ P @ B, B.T @ P @ A).ravel()
+        if self.mode == 'lqr':
+            return float(K[0]), float(K[1]), 0.0
+        return float(K[1]), float(K[2]), float(K[0])
 
 
 @dataclass
@@ -150,7 +161,7 @@ class TrackingLaw:
 
     def __init__(self, p: ControlParams):
         self.p = p
-        self.kp, self.kd = p.gains()
+        self.kp, self.kd, self.ki = p.gains()
         self.integral = np.zeros(2)
 
     def reset(self):
@@ -162,12 +173,12 @@ class TrackingLaw:
         v_ref = target.velocity[:2] + clip_norm(self.kp / self.kd * e_p, p.v_rel_max)
         v_ref = clip_norm(v_ref, p.v_max)
         a = target.acceleration[:2] + self.kd * (v_ref - drone.velocity[:2])
-        if p.mode == 'pid':
+        if p.mode in ('pid', 'lqi'):
             if integrate and np.linalg.norm(e_p) < p.i_window:
                 self.integral += e_p * dt
-            if p.ki > 0:
-                self.integral = clip_norm(self.integral, p.i_acc_limit / p.ki)
-            a = a + p.ki * self.integral
+            if self.ki > 0:
+                self.integral = clip_norm(self.integral, p.i_acc_limit / self.ki)
+            a = a + self.ki * self.integral
         return clip_norm(a, p.a_max)
 
     def setpoint_xy(self, sp, drone, target, dt, integrate):

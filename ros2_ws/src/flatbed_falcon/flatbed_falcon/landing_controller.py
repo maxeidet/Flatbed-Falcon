@@ -63,9 +63,9 @@ class LandingController(Node):
         self.gimbal_mode = self.declare_parameter('gimbal_mode', 'track').value
         self.gimbal_period = 1.0 / self.declare_parameter('gimbal_rate_hz', 5.0).value
         self.machine = logic.LandingStateMachine(control, landing)
-        kp, kd = self.machine.law.kp, self.machine.law.kd
-        self.get_logger().info(f'Control mode {control.mode}: kp {kp:.3f}, kd {kd:.3f}'
-                               + (f', ki {control.ki}' if control.mode == 'pid' else ''))
+        law = self.machine.law
+        self.get_logger().info(f'Control mode {control.mode}: kp {law.kp:.3f}, kd {law.kd:.3f}'
+                               + (f', ki {law.ki:.3f}' if control.mode in ('pid', 'lqi') else ''))
         # PX4 timestamps are on the system clock (the DDS agent's time sync), not sim time.
         self.px4_clock = Clock(clock_type=ClockType.SYSTEM_TIME)
 
