@@ -8,6 +8,8 @@ The truck drives laps on a 1.1 km forest road loop with Pure Pursuit, shares its
 
 See [PLAN.md](PLAN.md) for the design and work plan.
 
+**Videos:** the final presentation video (3:06) and all recordings, overlays and comparison clips are in this [Google Drive folder](https://drive.google.com/drive/folders/1Q1wMDsK5-q4DVrhlGSGVsWqEiBOJH4Jf?usp=sharing) (`flatbed_falcon_videos_2026-10-18.zip`, 1.3 GB). What each video shows and how it was made: [VIDEOS.md](VIDEOS.md). Controllers, Kalman filter and the error measurements: [CONTROLLERS.md](CONTROLLERS.md). Narration script: [PRESENTATION_SCRIPT.md](PRESENTATION_SCRIPT.md).
+
 ## Running
 
 ```bash

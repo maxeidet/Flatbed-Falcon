@@ -2,6 +2,18 @@
 
 Every video made on 2026-10-18: which run it shows, how that run was configured, and how the video was made and synced. How the controllers, the Kalman filter and the error measurements work is in [CONTROLLERS.md](CONTROLLERS.md).
 
+## Download
+
+All the videos and still images are in one zip, `flatbed_falcon_videos_2026-10-18.zip` (1.3 GB), in this **[Google Drive folder](https://drive.google.com/drive/folders/1Q1wMDsK5-q4DVrhlGSGVsWqEiBOJH4Jf?usp=sharing)**.
+
+| In the zip | Contents |
+|---|---|
+| `videos/flatbed_falcon_final.mp4` | **The final presentation video** (3:06). Narration script: [PRESENTATION_SCRIPT.md](PRESENTATION_SCRIPT.md) |
+| `videos/clips/`, `videos/figures/` | Presentation clips and still images (section 3.5–3.6) |
+| `videos/<log>/`, `videos/*.mp4` | Recordings with overlays, side by side, and the comparison from the CSV logs (section 3.2–3.4) |
+| `recordings/` | The raw Gazebo recordings. In this file they're named after where they lie in the repo root (section 3.1) |
+| `VIDEOS.md` | This file |
+
 The videos themselves are not in Git: `videos/` is in `.gitignore`. The recordings in the repo root (`*.mp4`) aren't ignored, but they aren't committed either. The run logs are in `logs/` (also ignored). Everything lives only on this computer, with no backup.
 
 ## 1. Shared configuration (the same for every run)
