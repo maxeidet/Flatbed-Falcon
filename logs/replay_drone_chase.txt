@@ -1,0 +1,66 @@
+Replaying logs/gz/20261018-105132 from the drone_chase angle.
+QStandardPaths: XDG_RUNTIME_DIR not set, defaulting to '/tmp/runtime-root'
+libEGL warning: pci id for fd 95: 10de:2c34, driver (null)
+
+pci id for fd 96: 10de:2c34, driver (null)
+pci id for fd 97: 10de:2c34, driver (null)
+libEGL warning: egl: failed to create dri2 screen
+libEGL warning: pci id for fd 95: 10de:2c34, driver (null)
+
+pci id for fd 96: 10de:2c34, driver (null)
+pci id for fd 97: 10de:2c34, driver (null)
+libEGL warning: egl: failed to create dri2 screen
+libEGL warning: pci id for fd 95: 10de:2c34, driver (null)
+
+Camera set to drone_chase. Start the video recorder (top left), then press play.
+Filming 3447 frames (138 s at 25 fps) into /workspace/videos/20261018-105132/frames_drone_chase
+  frame 1/3447, about 13 min left
+[1;33mWarning [Utils.cc:132][0m [/sdf/model[@name="x500_gimbal"]/link[@name="base_link"]/sensor[@name="air_pressure_sensor"]/gz_frame_id:<data-string>:L235]: XML Element[gz_frame_id], child of element[sensor], not defined in SDF. Copying[gz_frame_id] as children of [sensor].
+[1;33mWarning [Utils.cc:132][0m [/sdf/model[@name="x500_gimbal"]/link[@name="base_link"]/sensor[@name="magnetometer_sensor"]/gz_frame_id:<data-string>:L257]: XML Element[gz_frame_id], child of element[sensor], not defined in SDF. Copying[gz_frame_id] as children of [sensor].
+[1;33mWarning [Utils.cc:132][0m [/sdf/model[@name="x500_gimbal"]/link[@name="base_link"]/sensor[@name="imu_sensor"]/gz_frame_id:<data-string>:L304]: XML Element[gz_frame_id], child of element[sensor], not defined in SDF. Copying[gz_frame_id] as children of [sensor].
+[1;33mWarning [Utils.cc:132][0m [/sdf/model[@name="x500_gimbal"]/link[@name="base_link"]/sensor[@name="navsat_sensor"]/gz_frame_id:<data-string>:L309]: XML Element[gz_frame_id], child of element[sensor], not defined in SDF. Copying[gz_frame_id] as children of [sensor].
+[1;33mWarning [Utils.cc:132][0m [/sdf/model[@name="x500_gimbal"]/link[@name="camera_link"]/sensor[@name="camera_imu"]/gz_frame_id:<data-string>:L935]: XML Element[gz_frame_id], child of element[sensor], not defined in SDF. Copying[gz_frame_id] as children of [sensor].
+[1;33mWarning [Utils.cc:132][0m [/sdf/model[@name="x500_gimbal"]/link[@name="camera_link"]/sensor[@name="camera"]/gz_frame_id:<data-string>:L955]: XML Element[gz_frame_id], child of element[sensor], not defined in SDF. Copying[gz_frame_id] as children of [sensor].
+[1;33mWarning [Utils.cc:132][0m [/sdf/model[@name="x500_gimbal"]/link[@name="base_link"]/sensor[@name="air_pressure_sensor"]/gz_frame_id:<data-string>:L235]: XML Element[gz_frame_id], child of element[sensor], not defined in SDF. Copying[gz_frame_id] as children of [sensor].
+[1;33mWarning [Utils.cc:132][0m [/sdf/model[@name="x500_gimbal"]/link[@name="base_link"]/sensor[@name="magnetometer_sensor"]/gz_frame_id:<data-string>:L257]: XML Element[gz_frame_id], child of element[sensor], not defined in SDF. Copying[gz_frame_id] as children of [sensor].
+[1;33mWarning [Utils.cc:132][0m [/sdf/model[@name="x500_gimbal"]/link[@name="base_link"]/sensor[@name="imu_sensor"]/gz_frame_id:<data-string>:L304]: XML Element[gz_frame_id], child of element[sensor], not defined in SDF. Copying[gz_frame_id] as children of [sensor].
+[1;33mWarning [Utils.cc:132][0m [/sdf/model[@name="x500_gimbal"]/link[@name="base_link"]/sensor[@name="navsat_sensor"]/gz_frame_id:<data-string>:L310]: XML Element[gz_frame_id], child of element[sensor], not defined in SDF. Copying[gz_frame_id] as children of [sensor].
+[1;33mWarning [Utils.cc:132][0m [/sdf/model[@name="x500_gimbal"]/link[@name="camera_link"]/sensor[@name="camera_imu"]/gz_frame_id:<data-string>:L935]: XML Element[gz_frame_id], child of element[sensor], not defined in SDF. Copying[gz_frame_id] as children of [sensor].
+[1;33mWarning [Utils.cc:132][0m [/sdf/model[@name="x500_gimbal"]/link[@name="camera_link"]/sensor[@name="camera"]/gz_frame_id:<data-string>:L955]: XML Element[gz_frame_id], child of element[sensor], not defined in SDF. Copying[gz_frame_id] as children of [sensor].
+  frame 101/3447, about 10 min left
+  frame 201/3447, about 10 min left
+  frame 301/3447, about 9 min left
+  frame 401/3447, about 9 min left
+  frame 501/3447, about 9 min left
+  frame 601/3447, about 9 min left
+  frame 701/3447, about 8 min left
+  frame 801/3447, about 8 min left
+  frame 901/3447, about 8 min left
+  frame 1001/3447, about 7 min left
+  frame 1101/3447, about 7 min left
+  frame 1201/3447, about 7 min left
+  frame 1301/3447, about 6 min left
+  frame 1401/3447, about 6 min left
+  frame 1501/3447, about 6 min left
+  frame 1601/3447, about 6 min left
+  frame 1701/3447, about 5 min left
+  frame 1801/3447, about 5 min left
+  frame 1901/3447, about 5 min left
+  frame 2001/3447, about 4 min left
+  frame 2101/3447, about 4 min left
+  frame 2201/3447, about 4 min left
+  frame 2301/3447, about 3 min left
+  frame 2401/3447, about 3 min left
+  frame 2501/3447, about 3 min left
+  frame 2601/3447, about 3 min left
+  frame 2701/3447, about 2 min left
+  frame 2801/3447, about 2 min left
+  frame 2901/3447, about 2 min left
+  frame 3001/3447, about 1 min left
+  frame 3101/3447, about 1 min left
+  frame 3201/3447, about 1 min left
+  frame 3301/3447, about 0 min left
+  frame 3401/3447, about 0 min left
+  frame 3447/3447, about 0 min left
+All frames saved.
+Saved videos/20261018-105132/drone_chase.mp4
